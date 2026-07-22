@@ -13,6 +13,7 @@ import { NextFunction, Request, Response, Router } from "express";
 import { verifyPassword } from "../../../../lib/helpers/encriptations/passwords.encriptation";
 import { generateAdministradorToken } from "../../../../lib/helpers/functions/jwt/generators/administradorToken";
 import { TiposUsuario } from "../../../../interfaces/shared/TiposUsuario";
+import { r2StorageClient } from "../../../../core/buckets/connectors/CloudfareR2";
 
 const loginAdministradorRouter = Router();
 
