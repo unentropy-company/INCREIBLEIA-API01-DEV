@@ -1,0 +1,29 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model T_Administradores {
+    Id_Administrador               Int     @id @default(autoincrement())
+    Nombres                        String  @db.VarChar(80)
+    Apellidos                      String  @db.VarChar(100)
+    Correo                         String  @db.VarChar(200)
+    Nombre_Usuario                 String  @db.VarChar(100)
+    Contraseña                    String  @db.VarChar(300)
+    Ruta_Foto_Perfil               String? @db.VarChar(300)
+    Totp_Secret                    String? @db.VarChar(100)
+    Duracion_Codigos_Totp_Segundos Int?
+}
+
+model T_Cuentas_Temporales {
+    Id_Cuenta_Temporal           Int      @id @default(autoincrement())
+    Nombres_Persona              String   @db.VarChar(80)
+    Apellidos_Persona            String   @db.VarChar(100)
+    Nombre_Usuario_Temporal      String   @db.VarChar(100)
+    Contraseña_Usuario_Temporal  String   @db.VarChar(300)
+    Fecha_Hora_Inicio            DateTime
+    Fecha_Hora_Final             DateTime
+}
