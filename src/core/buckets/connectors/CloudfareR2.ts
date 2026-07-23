@@ -217,9 +217,7 @@ class R2StorageClient {
     ruta: string,
     expiresInSeconds: number = R2_PRESIGNED_GET_URL_EXPIRATION_SECONDS,
   ): Promise<string> {
-    console.log(
-      `Generando URL prefirmada de descarga para "${ruta}" con expiración de ${expiresInSeconds} segundos...`,
-    );
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,

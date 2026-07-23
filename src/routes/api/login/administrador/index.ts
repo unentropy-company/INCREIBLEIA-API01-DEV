@@ -80,6 +80,10 @@ loginAdministradorRouter.post("/", (async (
       administrador.Nombre_Usuario,
     );
 
+    const url_presigned =
+      administrador.Ruta_Foto_Perfil &&
+      (await r2StorageClient.getPresignedDownloadUrl(administrador.Ruta_Foto_Perfil));
+
     const response: ResponseSuccessLogin = {
       success: true,
       message: "Inicio de sesión exitoso",
@@ -88,7 +92,7 @@ loginAdministradorRouter.post("/", (async (
         Tipo_Usuario: TiposUsuario.Administrador,
         Nombres: administrador.Nombres,
         Apellidos: administrador.Apellidos,
-        Foto_Perfil_URL: null,
+        Foto_Perfil_URL: url_presigned,
         token,
       },
     };
