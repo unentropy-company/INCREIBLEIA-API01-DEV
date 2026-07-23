@@ -1,4 +1,5 @@
 import swaggerJSDoc from "swagger-jsdoc";
+import path from "path";
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -11,12 +12,12 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: "http://localhost:4002/api", 
-        description: "Servidor local de desarrollo",
+        url: "https://increibleia-api01-dev.vercel.app/api",
+        description: "Servidor Vercel (Dev)",
       },
       {
-        url: "https://api.tudominio.com/api",
-        description: "Servidor de producción",
+        url: "http://localhost:4002/api",
+        description: "Servidor local de desarrollo",
       },
     ],
     components: {
@@ -29,7 +30,13 @@ const options: swaggerJSDoc.Options = {
       },
     },
   },
-  apis: ["./src/routes/**/*.ts", "./src/routes/*.ts"],
+  // 📌 Uso de path.resolve/path.join para soportar .ts (local) y .js (Vercel/Producción)
+  apis: [
+    path.join(process.cwd(), "src/routes/**/*.ts"),
+    path.join(process.cwd(), "src/routes/*.ts"),
+    path.join(__dirname, "../routes/**/*.ts"),
+    path.join(__dirname, "../routes/**/*.js"),
+  ],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
