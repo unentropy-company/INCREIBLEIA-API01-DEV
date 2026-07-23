@@ -1,3 +1,4 @@
+import { Genero } from "../../../Genero";
 import { TiposUsuario } from "../../../TiposUsuario";
 import { ApiResponseBase } from "../../types";
 
@@ -17,6 +18,7 @@ export interface SuccessLoginData {
   Tipo_Usuario: TiposUsuario;
   Nombres: string;
   Apellidos: string;
+  Genero: Genero;
   token: string;
   Foto_Perfil_URL: string | null;
 }

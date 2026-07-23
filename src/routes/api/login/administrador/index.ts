@@ -14,6 +14,8 @@ import { verifyPassword } from "../../../../lib/helpers/encriptations/passwords.
 import { generateAdministradorToken } from "../../../../lib/helpers/functions/jwt/generators/administradorToken";
 import { TiposUsuario } from "../../../../interfaces/shared/TiposUsuario";
 import { r2StorageClient } from "../../../../core/buckets/connectors/CloudfareR2";
+import { Genero } from "../../../../interfaces/shared/Genero";
+import { ADMINISTRADORES_SESSION_EXPIRATION } from "../../../../constants/EXPIRACIONES_JWT";
 
 const loginAdministradorRouter = Router();
 
@@ -45,6 +47,7 @@ loginAdministradorRouter.post("/", (async (
         "Contraseña",
         "Nombres",
         "Apellidos",
+        "Genero",
         "Ruta_Foto_Perfil",
       ],
     );
@@ -80,9 +83,12 @@ loginAdministradorRouter.post("/", (async (
       administrador.Nombre_Usuario,
     );
 
+    // Obtener URL prefirmada para la foto de perfil si existe con una expiración extendida de 5 minutos adicionales
     const url_presigned =
       administrador.Ruta_Foto_Perfil &&
-      (await r2StorageClient.getPresignedDownloadUrl(administrador.Ruta_Foto_Perfil));
+      (await r2StorageClient.getPresignedDownloadUrl(
+        administrador.Ruta_Foto_Perfil, ADMINISTRADORES_SESSION_EXPIRATION + 300
+      ));
 
     const response: ResponseSuccessLogin = {
       success: true,
@@ -92,6 +98,7 @@ loginAdministradorRouter.post("/", (async (
         Tipo_Usuario: TiposUsuario.Administrador,
         Nombres: administrador.Nombres,
         Apellidos: administrador.Apellidos,
+        Genero: administrador.Genero as Genero,
         Foto_Perfil_URL: url_presigned,
         token,
       },

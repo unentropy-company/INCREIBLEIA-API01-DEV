@@ -13,6 +13,9 @@ import { buscarCuentaTemporalPorNombreUsuarioSelect } from "../../../../core/dat
 import { verifyPassword } from "../../../../lib/helpers/encriptations/passwords.encriptation";
 import { generateCuentaTemporalToken } from "../../../../lib/helpers/functions/jwt/generators/cuentaTemporalToken";
 import { TiposUsuario } from "../../../../interfaces/shared/TiposUsuario";
+import { r2StorageClient } from "../../../../core/buckets/connectors/CloudfareR2";
+import { CUENTAS_TEMPORALES_SESSION_EXPIRATION } from "../../../../constants/EXPIRACIONES_JWT";
+import { Genero } from "../../../../interfaces/shared/Genero";
 
 const loginCuentaTemporalRouter = Router();
 
@@ -44,6 +47,8 @@ loginCuentaTemporalRouter.post("/", (async (
         "Contraseña_Usuario_Temporal",
         "Nombres_Persona",
         "Apellidos_Persona",
+        "Genero",
+        "Ruta_Foto_Perfil",
         "Fecha_Hora_Inicio",
         "Fecha_Hora_Final",
       ],
@@ -101,6 +106,14 @@ loginCuentaTemporalRouter.post("/", (async (
       cuentaTemporal.Nombre_Usuario_Temporal,
     );
 
+    // Obtener URL prefirmada para la foto de perfil si existe con una expiración extendida de 5 minutos adicionales
+    const url_presigned =
+      cuentaTemporal.Ruta_Foto_Perfil &&
+      (await r2StorageClient.getPresignedDownloadUrl(
+        cuentaTemporal.Ruta_Foto_Perfil,
+        CUENTAS_TEMPORALES_SESSION_EXPIRATION + 300,
+      ));
+
     const response: ResponseSuccessLogin = {
       success: true,
       message: "Inicio de sesión exitoso",
@@ -109,7 +122,8 @@ loginCuentaTemporalRouter.post("/", (async (
         Tipo_Usuario: TiposUsuario.Cuenta_Temporal,
         Nombres: cuentaTemporal.Nombres_Persona,
         Apellidos: cuentaTemporal.Apellidos_Persona,
-        Foto_Perfil_URL: null, // Asumiendo que las cuentas temporales no tienen foto de perfil
+        Genero: cuentaTemporal.Genero as Genero,
+        Foto_Perfil_URL: url_presigned,
         token,
       },
     };
