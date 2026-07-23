@@ -17,19 +17,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 🔒 Ruta protegida de Swagger con Basic Auth
-const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.min.css";
-
 app.use(
   "/api-docs",
   swaggerAuth, // Tu middleware si lo estás usando
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
-    customCssUrl: CSS_URL,
+    customCssUrl:
+      "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.min.css",
     customJs: [
       "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui-bundle.js",
       "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui-standalone-preset.js",
     ],
-  })
+  }),
 );
 
 // 🛡️ Middleware de prevención SQL Injection y resto de rutas
