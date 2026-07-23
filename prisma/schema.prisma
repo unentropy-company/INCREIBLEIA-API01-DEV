@@ -12,7 +12,7 @@ model T_Administradores {
     Apellidos                      String  @db.VarChar(100)
     Genero                         String  @db.Char(1)
     Correo                         String  @db.VarChar(200)
-    Nombre_Usuario                 String  @db.VarChar(100)
+    Nombre_Usuario                 String  @db.VarChar(100) @unique
     Contraseña                     String  @db.VarChar(300)
     Ruta_Foto_Perfil               String?  @db.VarChar(300)
     Totp_Secret                    String? @db.VarChar(100)
@@ -24,7 +24,7 @@ model T_Cuentas_Temporales {
     Nombres_Persona             String   @db.VarChar(80)
     Apellidos_Persona           String   @db.VarChar(100)
     Genero                      String   @db.Char(1)
-    Nombre_Usuario_Temporal     String   @db.VarChar(100)
+    Nombre_Usuario_Temporal     String   @db.VarChar(100) @unique
     Contraseña_Usuario_Temporal String   @db.VarChar(300)
     Ruta_Foto_Perfil            String?  @db.VarChar(300)
     Fecha_Hora_Inicio           DateTime
