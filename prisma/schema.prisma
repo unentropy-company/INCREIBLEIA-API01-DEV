@@ -29,4 +29,5 @@ model T_Cuentas_Temporales {
     Ruta_Foto_Perfil            String?  @db.VarChar(300)
     Fecha_Hora_Inicio           DateTime
     Fecha_Hora_Final            DateTime
+    Estado                      Boolean
 }

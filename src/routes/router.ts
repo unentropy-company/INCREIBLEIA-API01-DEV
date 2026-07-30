@@ -5,6 +5,12 @@ import AllErrorTypes from "../interfaces/shared/errors";
 import { ErrorDetails } from "../interfaces/shared/errors/details";
 
 import loginRouter from "./api/login";
+import miPerfilRouter from "./api/mi-perfil";
+import checkAuthentication from "../middlewares/checkAuthentication";
+import decodeType from "../middlewares/decodeType";
+import isAdministradorAuthenticated from "../middlewares/isAdministradorAuthenticated";
+import isCuentaTemporalAuthenticated from "../middlewares/isCuentaTemporalAuthenticated";
+import authRouter from "./api/auth";
 
 const router = Router();
 
@@ -25,5 +31,22 @@ declare global {
 }
 
 router.use("/login", loginRouter);
+
+router.use(
+  "/mi-perfil",
+  decodeType,
+  isAdministradorAuthenticated,
+  isCuentaTemporalAuthenticated,
+  checkAuthentication,
+  miPerfilRouter,
+);
+
+router.use(
+  "/auth",
+  decodeType,
+  isAdministradorAuthenticated,
+  checkAuthentication,
+  authRouter,
+);
 
 export default router;

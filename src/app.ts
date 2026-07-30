@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 // 🔒 Ruta protegida de Swagger con Basic Auth
 app.use(
   "/api-docs",
-  swaggerAuth, // Tu middleware si lo estás usando
+  swaggerAuth,
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     customCssUrl:

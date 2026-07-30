@@ -1,0 +1,2 @@
+export const TOTP_DEFAULT_DURATION_SECONDS = 60;
+export const LOGIN_TOTP_OPERATION_EXPIRATION_SECONDS = 330; // 5.5 minutos (330 segundos)

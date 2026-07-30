@@ -10,6 +10,10 @@ export interface LoginBody {
   Contraseña: string;
 }
 
+export interface ValidateTotpBody extends SuccessLoginDataWithTotp {
+  Totp_Code: string;
+}
+
 /**
  * Datos retornados en login exitoso
  */
@@ -23,6 +27,17 @@ export interface SuccessLoginData {
   Foto_Perfil_URL: string | null;
 }
 
+/**
+ * Datos retornados en login exitoso cuando TOTP está activado y se requiere un token temporal para completar la autenticación
+ */
+export interface SuccessLoginDataWithTotp {
+  Totp_Operation_Token: string;
+}
+
 export type ResponseSuccessLogin = ApiResponseBase & {
   data: SuccessLoginData;
+};
+
+export type ResponseSuccessLoginWithTotp = ApiResponseBase & {
+  data: SuccessLoginDataWithTotp;
 };

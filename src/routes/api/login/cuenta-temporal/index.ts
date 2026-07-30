@@ -1,8 +1,6 @@
 import { NextFunction, Request, Response, Router } from "express";
 import { z } from "zod";
-import {
-  ResponseSuccessLogin,
-} from "../../../../interfaces/shared/apis/shared/login/types";
+import { ResponseSuccessLogin } from "../../../../interfaces/shared/apis/api01/login/types";
 import { ErrorResponseAPIBase } from "../../../../interfaces/shared/apis/types";
 import {
   RequestErrorTypes,
@@ -26,7 +24,7 @@ export type LoginCuentaTemporalInput = z.infer<
 >;
 
 // =======================================================================================
-//                             DOCUMENTACIÓN SWAGGER / OPENAPI                            
+//                             DOCUMENTACIÓN SWAGGER / OPENAPI
 // =======================================================================================
 /**
  * @openapi
@@ -72,7 +70,7 @@ export type LoginCuentaTemporalInput = z.infer<
  */
 
 // ==========================================
-//                 CONTROLADOR                
+//                 CONTROLADOR
 // ==========================================
 loginCuentaTemporalRouter.post("/", (async (
   req: Request,

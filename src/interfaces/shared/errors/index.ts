@@ -1,13 +1,3 @@
-/**
- * 🔄 TIPOS DE ERROR UNIFICADOS - API01 & SIU01 COMPATIBLE
- *
- * ✅ Retrocompatible con ambos componentes
- * ✅ Sincronizado entre proyectos
- * ✅ Tipos adicionales para sistema de asistencia
- * ✅ Duplicados/redundancias consolidados
- *
- * Última actualización: 2024-12-19
- */
 
 export enum RequestErrorTypes {
   INVALID_PARAMETERS = "INVALID_PARAMETERS",
@@ -85,7 +75,6 @@ export enum DataConflictErrorTypes {
   CONCURRENT_MODIFICATION = "CONFLICTO_MODIFICACIÓN_CONCURRENTE",
   VERSION_MISMATCH = "CONFLICTO_VERSIÓN_NO_COINCIDE",
   DEPENDENCY_EXISTS = "CONFLICTO_DEPENDENCIA_EXISTE",
-  // ✅ Se elimina RECORD_NOT_FOUND: no es un conflicto, ya existe en DataErrorTypes
 }
 
 export enum FileErrorTypes {
@@ -106,13 +95,11 @@ export enum AuthenticationErrorTypes {
   OTP_INVALID = "OTP_INVALID",
   ACCOUNT_LOCKED = "ACCOUNT_LOCKED",
   TEMPORARY_BLOCKED = "TEMPORARY_BLOCKED",
-  OTP_EXPIRED = "OTP_EXPIRED",
-  OTP_ALREADY_USED = "OTP_ALREADY_USED",
-  AUTHENTICATION_REQUIRED = "AUTHENTICATION_REQUIRED",
+  TEMPORARY_ACCOUNT_EXPIRED = "TEMPORARY_ACCOUNT_EXPIRED", // Para vigencia de cuentas temporales
 }
 
 export enum DataErrorTypes {
-  RECORD_NOT_FOUND = "RECORD_NOT_FOUND", // ✅ Único punto de verdad para "registro no encontrado"
+  RECORD_NOT_FOUND = "RECORD_NOT_FOUND",
   NO_DATA_AVAILABLE = "NO_DATA_AVAILABLE",
   DATA_NOT_EXISTS = "DATA_NOT_EXISTS",
   INVALID_DATA_FORMAT = "INVALID_DATA_FORMAT",
@@ -122,7 +109,7 @@ export enum DataErrorTypes {
 
 export enum NetworkErrorTypes {
   NETWORK_ERROR = "NETWORK_ERROR",
-  CONNECTION_TIMEOUT = "CONNECTION_TIMEOUT", // ✅ Se elimina TIMEOUT_ERROR (duplicado)
+  CONNECTION_TIMEOUT = "CONNECTION_TIMEOUT",
   CONNECTION_REFUSED = "CONNECTION_REFUSED",
   DNS_ERROR = "DNS_ERROR",
   OFFLINE = "OFFLINE",

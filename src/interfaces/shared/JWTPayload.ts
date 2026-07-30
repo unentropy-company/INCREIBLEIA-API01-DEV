@@ -24,3 +24,11 @@ export type CuentaTemporalAuthenticated = Pick<
 export type UserAuthenticatedAPI01 =
   | AdministradorAuthenticated
   | CuentaTemporalAuthenticated;
+
+
+export interface JWTPayloadForTotpOperationsInAuthenticationForAdministradores{
+  Id_Administrador: number;
+  Nombre_Usuario: string;
+  iat: number;
+  exp: number;
+}
