@@ -31,6 +31,12 @@ export type LoginCuentaTemporalInput = z.infer<
  * /login/cuenta-temporal:
  *   post:
  *     summary: Inicio de sesión para cuentas temporales
+ *     description: >
+ *       Autentica a un usuario de tipo `Cuenta_Temporal` mediante su nombre de usuario y contraseña.
+ *       
+ *       Valida adicionalmente que la fecha y hora actual se encuentren dentro del rango permitido
+ *       (`Fecha_Hora_Inicio` y `Fecha_Hora_Final`). Si la validación es exitosa, emite el token JWT
+ *       de sesión y retorna los datos de perfil junto con la URL firmada de su foto de perfil en R2 Storage.
  *     tags:
  *       - Autenticación
  *     requestBody:
@@ -49,26 +55,122 @@ export type LoginCuentaTemporalInput = z.infer<
  *                 maxLength: 20
  *                 pattern: '^[a-z_][a-z0-9_.]*$'
  *                 example: "temp.user_01"
- *                 description: "De 8 a 20 caracteres. Solo minúsculas, números, puntos y '_'. No puede iniciar con número."
+ *                 description: "De 8 a 20 caracteres. Solo minúsculas, números, puntos y '_'. No inicia con número."
  *               Contraseña:
  *                 type: string
  *                 minLength: 8
  *                 maxLength: 20
  *                 example: "TempPass123!"
- *                 description: "De 8 a 20 caracteres."
+ *                 description: "Contraseña de acceso (8 a 20 caracteres)."
  *     responses:
  *       200:
- *         description: Login exitoso.
+ *         description: Inicio de sesión exitoso. Retorna los datos del usuario y el JWT de sesión.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Inicio de sesión exitoso"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     Nombre_Usuario:
+ *                       type: string
+ *                       example: "temp.user_01"
+ *                     Tipo_Usuario:
+ *                       type: string
+ *                       enum: ["A", "CT"]
+ *                       description: "A = Administrador, CT = Cuenta Temporal"
+ *                       example: "A"
+ *                     Nombres:
+ *                       type: string
+ *                       example: "Juan"
+ *                     Apellidos:
+ *                       type: string
+ *                       example: "Pérez"
+ *                     Genero:
+ *                       type: string
+ *                       enum: ["M", "F"]
+ *                       description: "M = Masculino, F = Femenino"
+ *                       example: "M"
+ *                     Foto_Perfil_URL:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "https://r2.bucket.com/foto.jpg?token=..."
+ *                     token:
+ *                       type: string
+ *                       description: "JWT de sesión de larga duración para solicitudes autorizadas."
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *       400:
- *         description: Parámetros faltantes o formato/longitud inválidos.
+ *         description: Faltan parámetros obligatorios en la solicitud o el formato/longitud no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "El nombre de usuario y la contraseña son obligatorios"
+ *                 errorType:
+ *                   type: string
+ *                   example: "MISSING_PARAMETERS"
  *       401:
- *         description: Credenciales inválidas.
+ *         description: Credenciales incorrectas (Usuario o contraseña inválidos).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Credenciales inválidas"
+ *                 errorType:
+ *                   type: string
+ *                   example: "INVALID_CREDENTIALS"
  *       403:
- *         description: Cuenta no habilitada aún o expirada.
+ *         description: Acceso restringido por ventana de vigencia (Cuenta aún no habilitada o expirada).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Esta cuenta temporal ha expirado"
+ *                 errorType:
+ *                   type: string
+ *                   example: "USER_INACTIVE"
  *       500:
  *         description: Error interno del servidor.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error en el servidor, por favor intente más tarde"
+ *                 errorType:
+ *                   type: string
+ *                   example: "UNKNOWN_ERROR"
  */
-
 // ==========================================
 //                 CONTROLADOR
 // ==========================================

@@ -23,6 +23,144 @@ import { Genero } from "../../../../../interfaces/shared/Genero";
 
 const validateTotpCodeRouter = Router();
 
+// =======================================================================================
+//                          DOCUMENTACIÓN SWAGGER / OPENAPI
+// =======================================================================================
+/**
+ * @openapi
+ * /login/administrador/validar-codigo-totp:
+ *   post:
+ *     summary: Validación de segundo factor (TOTP) para inicio de sesión de Administrador
+ *     description: >
+ *       Verifica el Totp_Operation_Token (obtenido en la primera etapa del inicio de sesión)
+ *       junto con el código numérico de 6 dígitos generado por la aplicación autenticadora del usuario.
+ *
+ *       Si la validación es exitosa, emite el token JWT definitivo de la sesión e incluye los
+ *       datos del perfil junto con la URL firmada de la foto de perfil en R2 storage.
+ *     tags:
+ *       - Autenticación
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - Totp_Operation_Token
+ *               - Totp_Code
+ *             properties:
+ *               Totp_Operation_Token:
+ *                 type: string
+ *                 description: >
+ *                   Token JWT temporal de operación generado en la primera fase del login.
+ *                   Tiene una vigencia máxima de 5.5 minutos (330 segundos).
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               Totp_Code:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *                 pattern: '^[0-9]{6}$'
+ *                 description: "Código TOTP de 6 dígitos numéricos generado por la app autenticadora."
+ *                 example: "582910"
+ *     responses:
+ *       200:
+ *         description: Autenticación completa exitosa. Retorna el token JWT de sesión definitivo.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Inicio de sesión completado exitosamente"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     Nombre_Usuario:
+ *                       type: string
+ *                       example: "admin.user_01"
+ *                     Tipo_Usuario:
+ *                       type: string
+ *                       enum: ["A", "CT"]
+ *                       description: "A = Administrador, CT = Cuenta Temporal"
+ *                       example: "A"
+ *                     Nombres:
+ *                       type: string
+ *                       example: "Juan"
+ *                     Apellidos:
+ *                       type: string
+ *                       example: "Pérez"
+ *                     Genero:
+ *                       type: string
+ *                       enum: ["M", "F"]
+ *                       description: "M = Masculino, F = Femenino"
+ *                       example: "M"
+ *                     Foto_Perfil_URL:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "https://r2.bucket.com/foto.jpg?token=..."
+ *                     token:
+ *                       type: string
+ *                       description: "JWT de sesión de larga duración para solicitudes autorizadas."
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       400:
+ *         description: Faltan parámetros obligatorios en la solicitud o el formato del código TOTP es inválido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "El código TOTP debe ser una cadena exacta de 6 dígitos numéricos"
+ *                 errorType:
+ *                   type: string
+ *                   example: "INVALID_FORMAT"
+ *       401:
+ *         description: >
+ *           Fallos de autenticación:
+ *           - TOKEN_EXPIRED: El token de operación de 5.5 minutos caducó.
+ *           - TOKEN_INVALID_SIGNATURE: El token fue manipulado o alterado.
+ *           - USER_NOT_FOUND: El usuario fue eliminado o no tiene TOTP activo.
+ *           - OTP_INVALID: El código TOTP numérico ingresado es incorrecto o expiró.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "El código TOTP es incorrecto o ha expirado"
+ *                 errorType:
+ *                   type: string
+ *                   example: "OTP_INVALID"
+ *       500:
+ *         description: Error interno en el servidor o variable de entorno no configurada.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error en el servidor, por favor intente más tarde"
+ *                 errorType:
+ *                   type: string
+ *                   example: "UNKNOWN_ERROR"
+ */
+
 // ==========================================
 //                CONTROLADOR
 // ==========================================

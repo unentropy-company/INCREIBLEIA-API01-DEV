@@ -2,14 +2,13 @@ import swaggerJSDoc from "swagger-jsdoc";
 import path from "path";
 import { Entorno } from "../interfaces/shared/Entornos";
 
-const entorno = process.env.ENTORNO || Entorno.LOCAL; // Fallback a "L" si no viene definida
+const entorno = process.env.ENTORNO || Entorno.LOCAL;
 
-// Configuración del servidor según el entorno
 const getServerUrl = () => {
   switch (entorno) {
     case "P":
       return {
-        url: "https://api.tudominio.com/api", // Ajusta con la URL real de Prod
+        url: "https://api.tudominio.com/api",
         description: "Servidor de Producción",
       };
     case "D":
@@ -25,6 +24,9 @@ const getServerUrl = () => {
       };
   }
 };
+
+// Normaliza rutas de Windows (\) a formato POSIX (/) que Glob requiere
+const formatGlobPath = (targetPath: string) => targetPath.replace(/\\/g, "/");
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -46,14 +48,16 @@ const options: swaggerJSDoc.Options = {
       },
     },
   },
-  apis:
-    entorno === Entorno.LOCAL
-      ? ["./src/routes/**/*.ts", "./src/routes/*.ts"]
-      : [
-          path.join(process.cwd(), "src/routes/**/*.ts"),
-          path.join(process.cwd(), "src/routes/*.ts"),
-          path.join(__dirname, "../routes/**/*.js"),
-        ],
+  apis: [
+    // 1. Patrón relativo universal (cubre cualquier nivel de profundidad e index.ts)
+    "./src/routes/**/*.{ts,js}",
+    "./src/routes/**/index.{ts,js}",
+
+    // 2. Patrones absolutos normalizados para Windows / Linux
+    formatGlobPath(path.join(process.cwd(), "src/routes/**/*.{ts,js}")),
+    formatGlobPath(path.join(process.cwd(), "dist/routes/**/*.{ts,js}")),
+    formatGlobPath(path.join(__dirname, "../routes/**/*.{ts,js}")),
+  ],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);

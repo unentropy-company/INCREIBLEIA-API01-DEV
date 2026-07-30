@@ -87,7 +87,9 @@ const loginAdministradorRouter = Router();
  *                           example: "admin.user_01"
  *                         Tipo_Usuario:
  *                           type: string
- *                           example: "Administrador"
+ *                           enum: ["A", "CT"]
+ *                           description: "A = Administrador, CT = Cuenta Temporal"
+ *                           example: "A"
  *                         Nombres:
  *                           type: string
  *                           example: "Juan"
@@ -96,7 +98,9 @@ const loginAdministradorRouter = Router();
  *                           example: "Pérez"
  *                         Genero:
  *                           type: string
- *                           example: "MASCULINO"
+ *                           enum: ["M", "F"]
+ *                           description: "M = Masculino, F = Femenino"
+ *                           example: "M"
  *                         Foto_Perfil_URL:
  *                           type: string
  *                           nullable: true
