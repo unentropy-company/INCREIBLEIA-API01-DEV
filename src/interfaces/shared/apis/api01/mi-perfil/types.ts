@@ -13,6 +13,16 @@ export interface MiPerfilData {
   Totp_Url?: string;
 }
 
-export type ResponseSuccessMiPerfil = ApiResponseBase & {
+export type ResponseSuccessGetMiPerfil = ApiResponseBase & {
   data: MiPerfilData;
+};
+
+export interface RequestBodyUpdateMiPerfil {
+  Nombres: string;
+  Apellidos: string;
+  Genero: Genero;
+}
+
+export type ResponseSuccessUpdateMiPerfil = ApiResponseBase & {
+  data: RequestBodyUpdateMiPerfil;
 };
