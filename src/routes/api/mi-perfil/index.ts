@@ -29,6 +29,8 @@ import isCuentaTemporalAuthenticated from "../../../middlewares/isCuentaTemporal
 import checkAuthentication from "../../../middlewares/checkAuthentication";
 import { updateMiPerfilSchema } from "./schemas.zod";
 import { actualizarDatosPersonalesAdministrador } from "../../../core/databases/queries/administradores/actualizarDatosPersonalesAdministrador";
+import cambioFotoPerfilRouter from "./foto-perfil";
+import actualizarNombreUsuarioRouter from "./nombre-usuario";
 
 const miPerfilRouter = Router();
 
@@ -540,5 +542,20 @@ miPerfilRouter.put("/", (async (req: Request, res: Response) => {
     return res.status(500).json(errorResponse);
   }
 }) as any);
+
+miPerfilRouter.use(
+  "/foto-perfil",
+  isAdministradorAuthenticated,
+  isCuentaTemporalAuthenticated,
+  checkAuthentication,
+  cambioFotoPerfilRouter,
+);
+
+miPerfilRouter.use(
+  "/nombre-usuario",
+  isAdministradorAuthenticated,
+  checkAuthentication,
+  actualizarNombreUsuarioRouter,
+);
 
 export default miPerfilRouter;

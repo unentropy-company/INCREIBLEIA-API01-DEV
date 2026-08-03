@@ -6,9 +6,9 @@ import { ErrorDetails } from "../interfaces/shared/errors/details";
 
 import loginRouter from "./api/login";
 import miPerfilRouter from "./api/mi-perfil";
-import checkAuthentication from "../middlewares/checkAuthentication";
+// import checkAuthentication from "../middlewares/checkAuthentication";
 import decodeType from "../middlewares/decodeType";
-import isAdministradorAuthenticated from "../middlewares/isAdministradorAuthenticated";
+// import isAdministradorAuthenticated from "../middlewares/isAdministradorAuthenticated";
 import authRouter from "./api/auth";
 
 const router = Router();
@@ -33,12 +33,6 @@ router.use("/login", loginRouter);
 
 router.use("/mi-perfil", decodeType, miPerfilRouter);
 
-router.use(
-  "/auth",
-  decodeType,
-  isAdministradorAuthenticated,
-  checkAuthentication,
-  authRouter,
-);
+router.use("/auth", decodeType, authRouter);
 
 export default router;
