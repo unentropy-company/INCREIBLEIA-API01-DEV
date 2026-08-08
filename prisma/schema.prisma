@@ -31,3 +31,15 @@ model T_Cuentas_Temporales {
     Fecha_Hora_Final            DateTime
     Estado                      Boolean
 }
+
+model T_Codigos_OTP {
+  Id_Codigo_OTP    Int    @id @default(autoincrement())
+  Codigo           String @db.VarChar(6)
+  Timestamp_Creacion   BigInt
+  Timestamp_Expiracion BigInt
+  Correo_Destino   String @db.VarChar(70)
+  Tipo_Usuario      String @db.VarChar(2)
+  Id_Usuario       String @db.VarChar(20)
+
+  @@map("T_Codigos_OTP")
+}

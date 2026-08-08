@@ -1,6 +1,6 @@
 import { Router } from "express";
 import securityRouter from "./security";
-import actualizarContrasenaRouter from "./contraseña";
+import actualizarContrasenaRouter from "./contrasena";
 import checkAuthentication from "../../../middlewares/checkAuthentication";
 import isAdministradorAuthenticated from "../../../middlewares/isAdministradorAuthenticated";
 
@@ -14,7 +14,7 @@ authRouter.use(
 );
 
 authRouter.use(
-  "/contraseña",
+  "/contrasena",
   isAdministradorAuthenticated,
   checkAuthentication,
   actualizarContrasenaRouter,

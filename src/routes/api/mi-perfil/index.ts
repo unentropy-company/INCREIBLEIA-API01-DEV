@@ -31,6 +31,7 @@ import { updateMiPerfilSchema } from "./schemas.zod";
 import { actualizarDatosPersonalesAdministrador } from "../../../core/databases/queries/administradores/actualizarDatosPersonalesAdministrador";
 import cambioFotoPerfilRouter from "./foto-perfil";
 import actualizarNombreUsuarioRouter from "./nombre-usuario";
+import actualizarCorreoElectronicoRouter from "./correo-electronico/solicitar";
 
 const miPerfilRouter = Router();
 
@@ -85,8 +86,8 @@ const miPerfilRouter = Router();
  *                       example: "admin@dominio.com"
  *                     Tipo_Usuario:
  *                       type: string
- *                       enum: [Administrador, Cuenta_Temporal]
- *                       example: "Administrador"
+ *                       enum: [A, CT]
+ *                       example: "A"
  *                     Foto_Perfil_URL:
  *                       type: string
  *                       nullable: true
@@ -308,8 +309,8 @@ miPerfilRouter.get(
  *                 example: "Pérez Chávez"
  *               Genero:
  *                 type: string
- *                 enum: [MASCULINO, FEMENINO, OTRO]
- *                 example: "MASCULINO"
+ *                 enum: [M, F]
+ *                 example: "M"
  *     responses:
  *       200:
  *         description: Perfil actualizado exitosamente.
@@ -556,6 +557,13 @@ miPerfilRouter.use(
   isAdministradorAuthenticated,
   checkAuthentication,
   actualizarNombreUsuarioRouter,
+);
+
+miPerfilRouter.use(
+  "/correo-electronico",
+  isAdministradorAuthenticated,
+  checkAuthentication,
+  actualizarCorreoElectronicoRouter,
 );
 
 export default miPerfilRouter;
