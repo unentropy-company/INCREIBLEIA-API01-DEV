@@ -31,7 +31,7 @@ import { updateMiPerfilSchema } from "./schemas.zod";
 import { actualizarDatosPersonalesAdministrador } from "../../../core/databases/queries/administradores/actualizarDatosPersonalesAdministrador";
 import cambioFotoPerfilRouter from "./foto-perfil";
 import actualizarNombreUsuarioRouter from "./nombre-usuario";
-import actualizarCorreoElectronicoRouter from "./correo-electronico/solicitar";
+import CorreoElectronicoRouter from "./correo-electronico";
 
 const miPerfilRouter = Router();
 
@@ -563,7 +563,7 @@ miPerfilRouter.use(
   "/correo-electronico",
   isAdministradorAuthenticated,
   checkAuthentication,
-  actualizarCorreoElectronicoRouter,
+  CorreoElectronicoRouter,
 );
 
 export default miPerfilRouter;

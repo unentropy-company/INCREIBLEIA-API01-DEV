@@ -24,7 +24,7 @@ const confirmarCambioCorreoRouter = Router();
 
 /**
  * @openapi
- * /mi-perfil/correo-electronico/confirmar:
+ * /mi-perfil/correo-electronico/confirmar-cambio:
  *   put:
  *     summary: Confirmar cambio de correo electrónico con código OTP
  *     description: Valida el código OTP de 6 dígitos. Aplica la regla de un solo intento; si falla o está expirado, invalida la solicitud inmediatamente.

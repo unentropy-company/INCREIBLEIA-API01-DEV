@@ -24,7 +24,7 @@ import { OTP_CODE_FOR_UPDATING_EMAIL_MINUTES } from "../../../../../constants/AC
 import { reemplazarCodigoOTP } from "../../../../../core/databases/queries/codigos-top/reemplazarCodigoOTP";
 import isAdministradorAuthenticated from "../../../../../middlewares/isAdministradorAuthenticated";
 import checkAuthentication from "../../../../../middlewares/checkAuthentication";
-import confirmarCambioCorreoRouter from "../confirmar";
+import confirmarCambioCorreoRouter from "../confirmar-cambio";
 
 export const solicitarCambioCorreoSchema = z.object({
   Nuevo_Correo_Electronico: z
@@ -38,7 +38,7 @@ const solicitarCambioCorreoRouter = Router();
 
 /**
  * @openapi
- * /mi-perfil/correo-electronico:
+ * /mi-perfil/correo-electronico/solicitar-cambio:
  *   put:
  *     summary: Solicitar cambio de correo electrónico (Solo Administradores)
  *     description: Genera y envía un código de 6 dígitos al nuevo correo electrónico para verificar el acceso. Endpoint exclusivo para Administradores.
