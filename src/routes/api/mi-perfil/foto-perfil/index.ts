@@ -15,12 +15,13 @@ import {
   CUENTAS_TEMPORALES_SESSION_EXPIRATION,
 } from "../../../../constants/EXPIRACIONES_JWT";
 import { ResponseSuccessActualizarFotoPerfil } from "../../../../interfaces/shared/apis/api01/mi-perfil/foto-perfil/types";
+import { obtenerRutaFotoPerfilAdministrador } from "../../../../core/databases/queries/administradores/obtenerRutaFotoPerfilAdministrador";
 import { actualizarRutaFotoPerfilAdministrador } from "../../../../core/databases/queries/administradores/actualizarRutaFotoPerfilAdministrador";
+import { obtenerRutaFotoPerfilCuentaTemporal } from "../../../../core/databases/queries/cuentas-temporales/obtenerRutaFotoPerfilCuentaTemporal";
 import { actualizarRutaFotoPerfilCuentaTemporal } from "../../../../core/databases/queries/cuentas-temporales/actualizarRutaFotoPerfilCuentaTemporal";
 
 const actualizarFotoPerfilRouter = Router();
 
-// Configuración de Multer para almacenamiento en memoria (máximo 5MB)
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -29,64 +30,8 @@ const upload = multer({
   },
 });
 
-// Tipos MIME permitidos
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-/**
- * @openapi
- * /mi-perfil/foto-perfil:
- *   put:
- *     summary: Actualizar foto de perfil
- *     description: Carga o reemplaza la foto de perfil del usuario autenticado (Administrador o Cuenta Temporal). Almacena el archivo en Cloudflare R2 y guarda la ruta en la base de datos.
- *     tags:
- *       - Mi Perfil
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - foto
- *             properties:
- *               foto:
- *                 type: string
- *                 format: binary
- *                 description: Archivo de imagen (JPEG, PNG, WEBP, máx 5MB)
- *     responses:
- *       200:
- *         description: Foto de perfil actualizada con éxito. Retorna la URL pre-firmada de lectura.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Foto de perfil actualizada exitosamente"
- *                 data:
- *                   type: object
- *                   properties:
- *                     Foto_Perfil_URL:
- *                       type: string
- *                       example: "https://r2-bucket.com/Fotos_Perfil/Administradores/A_1.png?X-Amz-Algorithm=..."
- *       400:
- *         description: Error de validación en el archivo (no enviado, tipo de archivo no permitido o excede los 5MB).
- *       401:
- *         description: No autorizado (Token inválido o expirado).
- *       404:
- *         description: Usuario no encontrado en la base de datos.
- *       500:
- *         description: Error interno en el servidor o falla al comunicarse con R2/DB.
- */
-// ==========================================
-//               CONTROLADOR
-// ==========================================
 actualizarFotoPerfilRouter.put(
   "/",
   (req: Request, res: Response, next: NextFunction) => {
@@ -119,7 +64,6 @@ actualizarFotoPerfilRouter.put(
   },
   (async (req: Request, res: Response) => {
     try {
-      // Extracción segura soportando estructura directa o anidada en req.user
       const authUser =
         (req.user as any)?.user || (req.user as any)?.data || req.user;
       const userType = req.userType!;
@@ -135,7 +79,7 @@ actualizarFotoPerfilRouter.put(
         return res.status(400).json(errorResponse);
       }
 
-      // 2. Validar tipo MIME permitido
+      // 2. Validar tipo MIME
       if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
         const errorResponse: ErrorResponseAPIBase = {
           success: false,
@@ -146,18 +90,19 @@ actualizarFotoPerfilRouter.put(
         return res.status(400).json(errorResponse);
       }
 
-      // 3. Extraer extensión original del archivo
+      // 3. Normalizar extensión del nuevo archivo
       let fileExtension = path.extname(file.originalname).toLowerCase();
       if (!fileExtension) {
         if (file.mimetype === "image/png") fileExtension = ".png";
         else if (file.mimetype === "image/webp") fileExtension = ".webp";
-        else fileExtension = ".jpg";
+        else fileExtension = ".jpeg";
       }
 
       let r2Path = "";
+      let rutaFotoAnterior: string | null = null;
       let isUpdatedInDb = false;
 
-      // 4. Construir la ruta respetando las subcarpetas y el ID del usuario
+      // 4. Obtener ruta previa, eliminar archivo antiguo y subir nuevo
       if (userType === TiposUsuario.Administrador) {
         const idAdmin = authUser?.Id_Administrador;
 
@@ -171,12 +116,26 @@ actualizarFotoPerfilRouter.put(
           return res.status(401).json(errorResponse);
         }
 
+        // Consultar la ruta actual en base de datos
+        rutaFotoAnterior = await obtenerRutaFotoPerfilAdministrador(idAdmin);
         r2Path = `Fotos_Perfil/Administradores/A_${idAdmin}${fileExtension}`;
 
-        // Sube / reemplaza directamente en Cloudflare R2
+        // Eliminar de R2 si existía y tiene una extensión/nombre diferente
+        if (rutaFotoAnterior && rutaFotoAnterior !== r2Path) {
+          try {
+            await r2StorageClient.deleteFile(rutaFotoAnterior);
+          } catch (deleteErr) {
+            console.warn(
+              `No se pudo eliminar el archivo anterior en R2 (${rutaFotoAnterior}):`,
+              deleteErr,
+            );
+          }
+        }
+
+        // Subir nuevo archivo
         await r2StorageClient.uploadFile(r2Path, file.buffer, file.mimetype);
 
-        // Actualiza la ruta en la base de datos
+        // Actualizar nueva ruta en la base de datos
         isUpdatedInDb = await actualizarRutaFotoPerfilAdministrador(
           idAdmin,
           r2Path,
@@ -194,12 +153,27 @@ actualizarFotoPerfilRouter.put(
           return res.status(401).json(errorResponse);
         }
 
+        // Consultar la ruta actual en base de datos
+        rutaFotoAnterior =
+          await obtenerRutaFotoPerfilCuentaTemporal(idCuentaTemp);
         r2Path = `Fotos_Perfil/Cuenta_Temporales/CT_${idCuentaTemp}${fileExtension}`;
 
-        // Sube / reemplaza directamente en Cloudflare R2
+        // Eliminar de R2 si existía y tiene una extensión/nombre diferente
+        if (rutaFotoAnterior && rutaFotoAnterior !== r2Path) {
+          try {
+            await r2StorageClient.deleteFile(rutaFotoAnterior);
+          } catch (deleteErr) {
+            console.warn(
+              `No se pudo eliminar el archivo anterior en R2 (${rutaFotoAnterior}):`,
+              deleteErr,
+            );
+          }
+        }
+
+        // Subir nuevo archivo
         await r2StorageClient.uploadFile(r2Path, file.buffer, file.mimetype);
 
-        // Actualiza la ruta en la base de datos
+        // Actualizar nueva ruta en la base de datos
         isUpdatedInDb = await actualizarRutaFotoPerfilCuentaTemporal(
           idCuentaTemp,
           r2Path,
@@ -215,13 +189,12 @@ actualizarFotoPerfilRouter.put(
         return res.status(404).json(errorResponse);
       }
 
-      // 5. Generar y retornar la URL pre-firmada
+      // 5. Generar y retornar URL pre-firmada
       const sessionExpiration =
         userType === TiposUsuario.Administrador
           ? ADMINISTRADORES_SESSION_EXPIRATION
           : CUENTAS_TEMPORALES_SESSION_EXPIRATION;
 
-      // Generar la URL pre-firmada con la duración correspondiente + 300s de margen
       const urlPresigned = await r2StorageClient.getPresignedDownloadUrl(
         r2Path,
         sessionExpiration + 300,
