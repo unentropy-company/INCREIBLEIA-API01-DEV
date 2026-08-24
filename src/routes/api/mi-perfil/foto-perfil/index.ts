@@ -20,6 +20,7 @@ import { actualizarRutaFotoPerfilAdministrador } from "../../../../core/database
 import { obtenerRutaFotoPerfilCuentaTemporal } from "../../../../core/databases/queries/cuentas-temporales/obtenerRutaFotoPerfilCuentaTemporal";
 import { actualizarRutaFotoPerfilCuentaTemporal } from "../../../../core/databases/queries/cuentas-temporales/actualizarRutaFotoPerfilCuentaTemporal";
 
+
 const actualizarFotoPerfilRouter = Router();
 
 const storage = multer.memoryStorage();
@@ -69,7 +70,6 @@ actualizarFotoPerfilRouter.put(
       const userType = req.userType!;
       const file = req.file;
 
-      // 1. Validar presencia del archivo
       if (!file) {
         const errorResponse: ErrorResponseAPIBase = {
           success: false,
@@ -79,7 +79,6 @@ actualizarFotoPerfilRouter.put(
         return res.status(400).json(errorResponse);
       }
 
-      // 2. Validar tipo MIME
       if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
         const errorResponse: ErrorResponseAPIBase = {
           success: false,
@@ -90,7 +89,6 @@ actualizarFotoPerfilRouter.put(
         return res.status(400).json(errorResponse);
       }
 
-      // 3. Normalizar extensión del nuevo archivo
       let fileExtension = path.extname(file.originalname).toLowerCase();
       if (!fileExtension) {
         if (file.mimetype === "image/png") fileExtension = ".png";
@@ -102,10 +100,9 @@ actualizarFotoPerfilRouter.put(
       let rutaFotoAnterior: string | null = null;
       let isUpdatedInDb = false;
 
-      // 4. Obtener ruta previa, eliminar archivo antiguo y subir nuevo
+      // 1. Obtener ID y consultar la ruta previa antes de modificar nada
       if (userType === TiposUsuario.Administrador) {
         const idAdmin = authUser?.Id_Administrador;
-
         if (!idAdmin) {
           const errorResponse: ErrorResponseAPIBase = {
             success: false,
@@ -116,33 +113,19 @@ actualizarFotoPerfilRouter.put(
           return res.status(401).json(errorResponse);
         }
 
-        // Consultar la ruta actual en base de datos
         rutaFotoAnterior = await obtenerRutaFotoPerfilAdministrador(idAdmin);
         r2Path = `Fotos_Perfil/Administradores/A_${idAdmin}${fileExtension}`;
 
-        // Eliminar de R2 si existía y tiene una extensión/nombre diferente
-        if (rutaFotoAnterior && rutaFotoAnterior !== r2Path) {
-          try {
-            await r2StorageClient.deleteFile(rutaFotoAnterior);
-          } catch (deleteErr) {
-            console.warn(
-              `No se pudo eliminar el archivo anterior en R2 (${rutaFotoAnterior}):`,
-              deleteErr,
-            );
-          }
-        }
-
-        // Subir nuevo archivo
+        // 2. Subir el nuevo archivo primero a R2
         await r2StorageClient.uploadFile(r2Path, file.buffer, file.mimetype);
 
-        // Actualizar nueva ruta en la base de datos
+        // 3. Actualizar la referencia en la base de datos
         isUpdatedInDb = await actualizarRutaFotoPerfilAdministrador(
           idAdmin,
-          r2Path,
+          r2Path
         );
       } else {
         const idCuentaTemp = authUser?.Id_Cuenta_Temporal;
-
         if (!idCuentaTemp) {
           const errorResponse: ErrorResponseAPIBase = {
             success: false,
@@ -153,30 +136,16 @@ actualizarFotoPerfilRouter.put(
           return res.status(401).json(errorResponse);
         }
 
-        // Consultar la ruta actual en base de datos
-        rutaFotoAnterior =
-          await obtenerRutaFotoPerfilCuentaTemporal(idCuentaTemp);
+        rutaFotoAnterior = await obtenerRutaFotoPerfilCuentaTemporal(idCuentaTemp);
         r2Path = `Fotos_Perfil/Cuenta_Temporales/CT_${idCuentaTemp}${fileExtension}`;
 
-        // Eliminar de R2 si existía y tiene una extensión/nombre diferente
-        if (rutaFotoAnterior && rutaFotoAnterior !== r2Path) {
-          try {
-            await r2StorageClient.deleteFile(rutaFotoAnterior);
-          } catch (deleteErr) {
-            console.warn(
-              `No se pudo eliminar el archivo anterior en R2 (${rutaFotoAnterior}):`,
-              deleteErr,
-            );
-          }
-        }
-
-        // Subir nuevo archivo
+        // 2. Subir el nuevo archivo primero a R2
         await r2StorageClient.uploadFile(r2Path, file.buffer, file.mimetype);
 
-        // Actualizar nueva ruta en la base de datos
+        // 3. Actualizar la referencia en la base de datos
         isUpdatedInDb = await actualizarRutaFotoPerfilCuentaTemporal(
           idCuentaTemp,
-          r2Path,
+          r2Path
         );
       }
 
@@ -189,7 +158,19 @@ actualizarFotoPerfilRouter.put(
         return res.status(404).json(errorResponse);
       }
 
-      // 5. Generar y retornar URL pre-firmada
+      // 4. Limpieza diferida: Si todo salió bien y las extensiones difieren, borramos la antigua
+      if (rutaFotoAnterior && rutaFotoAnterior !== r2Path) {
+        try {
+          await r2StorageClient.deleteFile(rutaFotoAnterior);
+        } catch (deleteErr) {
+          console.warn(
+            `No se pudo eliminar el archivo anterior en R2 (${rutaFotoAnterior}):`,
+            deleteErr
+          );
+        }
+      }
+
+      // 5. Generar y responder con la URL prefirmada
       const sessionExpiration =
         userType === TiposUsuario.Administrador
           ? ADMINISTRADORES_SESSION_EXPIRATION
@@ -197,7 +178,7 @@ actualizarFotoPerfilRouter.put(
 
       const urlPresigned = await r2StorageClient.getPresignedDownloadUrl(
         r2Path,
-        sessionExpiration + 300,
+        sessionExpiration + 300
       );
 
       const response: ResponseSuccessActualizarFotoPerfil = {
@@ -221,7 +202,7 @@ actualizarFotoPerfilRouter.put(
 
       return res.status(500).json(errorResponse);
     }
-  }) as any,
+  }) as any
 );
 
 export default actualizarFotoPerfilRouter;
