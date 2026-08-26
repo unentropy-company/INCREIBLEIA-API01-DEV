@@ -366,183 +366,189 @@ miPerfilRouter.get(
  *       500:
  *         description: Error interno del servidor.
  */
-miPerfilRouter.put("/", (async (req: Request, res: Response) => {
-  try {
-    const userType = req.userType!;
+miPerfilRouter.put(
+  "/",
+  isAdministradorAuthenticated,
+  checkAuthentication,
+  (async (req: Request, res: Response) => {
+    try {
+      const userType = req.userType!;
 
-    // 1. Guardrail defensivo de Rol
-    if (userType !== TiposUsuario.Administrador) {
-      const errorResponse: ErrorResponseAPIBase = {
-        success: false,
-        message:
-          "No tiene permisos para realizar esta acción. Solo administradores.",
-        errorType: TokenErrorTypes.TOKEN_WRONG_ROLE,
-      };
-      return res.status(403).json(errorResponse);
-    }
+      // 1. Guardrail defensivo de Rol
+      if (userType !== TiposUsuario.Administrador) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message:
+            "No tiene permisos para realizar esta acción. Solo administradores.",
+          errorType: TokenErrorTypes.TOKEN_WRONG_ROLE,
+        };
+        return res.status(403).json(errorResponse);
+      }
 
-    // 2. Validación de Body con Zod
-    const validation = updateMiPerfilSchema.safeParse(req.body);
+      // 2. Validación de Body con Zod
+      const validation = updateMiPerfilSchema.safeParse(req.body);
 
-    if (!validation.success) {
-      const issue = validation.error.issues[0];
-      const messageCode = issue.message;
+      if (!validation.success) {
+        const issue = validation.error.issues[0];
+        const messageCode = issue.message;
 
-      // Parámetros Faltantes
+        // Parámetros Faltantes
+        if (
+          messageCode === "MISSING_NOMBRES" ||
+          messageCode === "MISSING_APELLIDOS" ||
+          messageCode === "MISSING_GENERO"
+        ) {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: "Los campos Nombres, Apellidos y Genero son obligatorios",
+            errorType: RequestErrorTypes.MISSING_PARAMETERS,
+          };
+          return res.status(400).json(errorResponse);
+        }
+
+        // Validaciones Nombres
+        if (messageCode === "NOMBRES_TOO_SHORT") {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: "El campo Nombres debe tener al menos 3 caracteres",
+            errorType: ValidationErrorTypes.INVALID_NAME,
+          };
+          return res.status(400).json(errorResponse);
+        }
+
+        if (messageCode === "NOMBRES_TOO_LONG") {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: "El campo Nombres no debe exceder los 80 caracteres",
+            errorType: ValidationErrorTypes.STRING_TOO_LONG,
+          };
+          return res.status(400).json(errorResponse);
+        }
+
+        // Validaciones Apellidos
+        if (messageCode === "APELLIDOS_TOO_SHORT") {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: "El campo Apellidos debe tener al menos 5 caracteres",
+            errorType: ValidationErrorTypes.INVALID_LASTNAME,
+          };
+          return res.status(400).json(errorResponse);
+        }
+
+        if (messageCode === "APELLIDOS_TOO_LONG") {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: "El campo Apellidos no debe exceder los 100 caracteres",
+            errorType: ValidationErrorTypes.STRING_TOO_LONG,
+          };
+          return res.status(400).json(errorResponse);
+        }
+
+        // Validación Género
+        if (messageCode === "INVALID_GENERO") {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: "El género proporcionado no es válido",
+            errorType: ValidationErrorTypes.INVALID_GENDER,
+          };
+          return res.status(400).json(errorResponse);
+        }
+
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: "Error de validación en la solicitud",
+          errorType: ValidationErrorTypes.INVALID_FORMAT,
+        };
+        return res.status(400).json(errorResponse);
+      }
+
+      const {
+        Nombres,
+        Apellidos,
+        Genero: generoInput,
+      }: RequestBodyUpdateMiPerfil = validation.data;
+
+      const idAdmin = (req.user! as AdministradorAuthenticated)
+        .Id_Administrador;
+
+      // 3. Actualización en BD
+      await actualizarDatosPersonalesAdministrador(idAdmin, {
+        Nombres,
+        Apellidos,
+        Genero: generoInput,
+      });
+
+      // 4. Consulta de datos actualizados
+      const administrador = await buscarAdministradorPorIdSelect(idAdmin, [
+        "Nombres",
+        "Apellidos",
+        "Genero",
+        "Nombre_Usuario",
+        "Correo",
+        "Ruta_Foto_Perfil",
+        "Totp_Secret",
+        "Duracion_Codigos_Totp_Segundos",
+      ]);
+
+      if (!administrador) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: "No se encontraron los datos del administrador.",
+          errorType: UserErrorTypes.USER_NOT_FOUND,
+        };
+        return res.status(404).json(errorResponse);
+      }
+
+      // 5. Construcción URI TOTP (si aplica)
+      let totpUrl: string | null = null;
       if (
-        messageCode === "MISSING_NOMBRES" ||
-        messageCode === "MISSING_APELLIDOS" ||
-        messageCode === "MISSING_GENERO"
+        administrador.Totp_Secret !== null &&
+        administrador.Duracion_Codigos_Totp_Segundos !== null
       ) {
-        const errorResponse: ErrorResponseAPIBase = {
-          success: false,
-          message: "Los campos Nombres, Apellidos y Genero son obligatorios",
-          errorType: RequestErrorTypes.MISSING_PARAMETERS,
-        };
-        return res.status(400).json(errorResponse);
+        const issuer = encodeURIComponent("INCREIBLE IA");
+        const label = encodeURIComponent(
+          administrador.Correo || administrador.Nombre_Usuario,
+        );
+        const period = administrador.Duracion_Codigos_Totp_Segundos;
+        totpUrl = `otpauth://totp/${issuer}:${label}?secret=${administrador.Totp_Secret}&issuer=${issuer}&period=${period}`;
       }
 
-      // Validaciones Nombres
-      if (messageCode === "NOMBRES_TOO_SHORT") {
-        const errorResponse: ErrorResponseAPIBase = {
-          success: false,
-          message: "El campo Nombres debe tener al menos 3 caracteres",
-          errorType: ValidationErrorTypes.INVALID_NAME,
-        };
-        return res.status(400).json(errorResponse);
-      }
+      // 6. Pre-signed URL foto R2
+      const url_presigned =
+        administrador.Ruta_Foto_Perfil &&
+        (await r2StorageClient.getPresignedDownloadUrl(
+          administrador.Ruta_Foto_Perfil,
+          ADMINISTRADORES_SESSION_EXPIRATION + 300,
+        ));
 
-      if (messageCode === "NOMBRES_TOO_LONG") {
-        const errorResponse: ErrorResponseAPIBase = {
-          success: false,
-          message: "El campo Nombres no debe exceder los 80 caracteres",
-          errorType: ValidationErrorTypes.STRING_TOO_LONG,
-        };
-        return res.status(400).json(errorResponse);
-      }
+      const perfilData: MiPerfilData = {
+        Nombres: administrador.Nombres,
+        Apellidos: administrador.Apellidos,
+        Genero: administrador.Genero as Genero,
+        Nombre_Usuario: administrador.Nombre_Usuario,
+        Correo_Electronico: administrador.Correo,
+        Tipo_Usuario: TiposUsuario.Administrador,
+        Foto_Perfil_URL: url_presigned || null,
+        ...(totpUrl !== null && { Totp_Url: totpUrl }),
+      };
 
-      // Validaciones Apellidos
-      if (messageCode === "APELLIDOS_TOO_SHORT") {
-        const errorResponse: ErrorResponseAPIBase = {
-          success: false,
-          message: "El campo Apellidos debe tener al menos 5 caracteres",
-          errorType: ValidationErrorTypes.INVALID_LASTNAME,
-        };
-        return res.status(400).json(errorResponse);
-      }
+      const response: ResponseSuccessUpdateMiPerfil = {
+        success: true,
+        message: "Perfil actualizado exitosamente",
+        data: perfilData,
+      };
 
-      if (messageCode === "APELLIDOS_TOO_LONG") {
-        const errorResponse: ErrorResponseAPIBase = {
-          success: false,
-          message: "El campo Apellidos no debe exceder los 100 caracteres",
-          errorType: ValidationErrorTypes.STRING_TOO_LONG,
-        };
-        return res.status(400).json(errorResponse);
-      }
-
-      // Validación Género
-      if (messageCode === "INVALID_GENERO") {
-        const errorResponse: ErrorResponseAPIBase = {
-          success: false,
-          message: "El género proporcionado no es válido",
-          errorType: ValidationErrorTypes.INVALID_GENDER,
-        };
-        return res.status(400).json(errorResponse);
-      }
-
+      return res.status(200).json(response);
+    } catch (error) {
       const errorResponse: ErrorResponseAPIBase = {
         success: false,
-        message: "Error de validación en la solicitud",
-        errorType: ValidationErrorTypes.INVALID_FORMAT,
+        message: "Error interno al actualizar los datos del perfil",
+        errorType: SystemErrorTypes.DATABASE_ERROR,
       };
-      return res.status(400).json(errorResponse);
+      return res.status(500).json(errorResponse);
     }
-
-    const {
-      Nombres,
-      Apellidos,
-      Genero: generoInput,
-    }: RequestBodyUpdateMiPerfil = validation.data;
-
-    const idAdmin = (req.user! as AdministradorAuthenticated).Id_Administrador;
-
-    // 3. Actualización en BD
-    await actualizarDatosPersonalesAdministrador(idAdmin, {
-      Nombres,
-      Apellidos,
-      Genero: generoInput,
-    });
-
-    // 4. Consulta de datos actualizados
-    const administrador = await buscarAdministradorPorIdSelect(idAdmin, [
-      "Nombres",
-      "Apellidos",
-      "Genero",
-      "Nombre_Usuario",
-      "Correo",
-      "Ruta_Foto_Perfil",
-      "Totp_Secret",
-      "Duracion_Codigos_Totp_Segundos",
-    ]);
-
-    if (!administrador) {
-      const errorResponse: ErrorResponseAPIBase = {
-        success: false,
-        message: "No se encontraron los datos del administrador.",
-        errorType: UserErrorTypes.USER_NOT_FOUND,
-      };
-      return res.status(404).json(errorResponse);
-    }
-
-    // 5. Construcción URI TOTP (si aplica)
-    let totpUrl: string | null = null;
-    if (
-      administrador.Totp_Secret !== null &&
-      administrador.Duracion_Codigos_Totp_Segundos !== null
-    ) {
-      const issuer = encodeURIComponent("INCREIBLE IA");
-      const label = encodeURIComponent(
-        administrador.Correo || administrador.Nombre_Usuario,
-      );
-      const period = administrador.Duracion_Codigos_Totp_Segundos;
-      totpUrl = `otpauth://totp/${issuer}:${label}?secret=${administrador.Totp_Secret}&issuer=${issuer}&period=${period}`;
-    }
-
-    // 6. Pre-signed URL foto R2
-    const url_presigned =
-      administrador.Ruta_Foto_Perfil &&
-      (await r2StorageClient.getPresignedDownloadUrl(
-        administrador.Ruta_Foto_Perfil,
-        ADMINISTRADORES_SESSION_EXPIRATION + 300,
-      ));
-
-    const perfilData: MiPerfilData = {
-      Nombres: administrador.Nombres,
-      Apellidos: administrador.Apellidos,
-      Genero: administrador.Genero as Genero,
-      Nombre_Usuario: administrador.Nombre_Usuario,
-      Correo_Electronico: administrador.Correo,
-      Tipo_Usuario: TiposUsuario.Administrador,
-      Foto_Perfil_URL: url_presigned || null,
-      ...(totpUrl !== null && { Totp_Url: totpUrl }),
-    };
-
-    const response: ResponseSuccessUpdateMiPerfil = {
-      success: true,
-      message: "Perfil actualizado exitosamente",
-      data: perfilData,
-    };
-
-    return res.status(200).json(response);
-  } catch (error) {
-    const errorResponse: ErrorResponseAPIBase = {
-      success: false,
-      message: "Error interno al actualizar los datos del perfil",
-      errorType: SystemErrorTypes.DATABASE_ERROR,
-    };
-    return res.status(500).json(errorResponse);
-  }
-}) as any);
+  }) as any,
+);
 
 miPerfilRouter.use(
   "/foto-perfil",
