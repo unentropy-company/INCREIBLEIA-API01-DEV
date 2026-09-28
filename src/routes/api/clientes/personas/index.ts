@@ -20,9 +20,9 @@ import {
   UltimoRegistroPersonaItem,
 } from "../../../../interfaces/shared/apis/api01/personas/types";
 import { parsearDocumentoIdentidad } from "../../../../lib/utils/formatters/documentosIdentidad";
-import { obtenerIndicadoresPersonas } from "../../../../core/databases/queries/personas/listarPersonasConIndicadores";
 import { listarPersonasConDetalles } from "../../../../core/databases/queries/personas/listarPersonasConDetalles";
 import { obtenerUltimosRegistrosPersonas } from "../../../../core/databases/queries/personas/obtenerUltimosRegistrosPersonas";
+import { obtenerIndicadoresPersonas } from "../../../../core/databases/queries/personas/listarPersonasConIndicadores";
 
 const personasRouter = Router();
 
@@ -31,7 +31,7 @@ const personasRouter = Router();
 // =======================================================================================
 /**
  * @openapi
- * /personas:
+ * /clientes/personas:
  *   get:
  *     summary: Obtener listado de personas con filtros avanzados, métricas y certificados
  *     description: >
