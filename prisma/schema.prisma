@@ -6,40 +6,246 @@ datasource db {
     provider = "postgresql"
 }
 
+// ==========================================
+//            MODELOS EXISTENTES
+// ==========================================
+
 model T_Administradores {
     Id_Administrador               Int     @id @default(autoincrement())
     Nombres                        String  @db.VarChar(80)
     Apellidos                      String  @db.VarChar(100)
     Genero                         String  @db.Char(1)
     Correo                         String  @db.VarChar(200)
-    Nombre_Usuario                 String  @db.VarChar(100) @unique
-    Contraseña                     String  @db.VarChar(300)
-    Ruta_Foto_Perfil               String?  @db.VarChar(300)
+    Nombre_Usuario                 String  @unique @db.VarChar(100)
+    Contraseña                    String  @db.VarChar(300)
+    Ruta_Foto_Perfil               String? @db.VarChar(300)
     Totp_Secret                    String? @db.VarChar(100)
     Duracion_Codigos_Totp_Segundos Int?
 }
 
 model T_Cuentas_Temporales {
-    Id_Cuenta_Temporal          Int      @id @default(autoincrement())
-    Nombres_Persona             String   @db.VarChar(80)
-    Apellidos_Persona           String   @db.VarChar(100)
-    Genero                      String   @db.Char(1)
-    Nombre_Usuario_Temporal     String   @db.VarChar(100) @unique
+    Id_Cuenta_Temporal           Int      @id @default(autoincrement())
+    Nombres_Persona              String   @db.VarChar(80)
+    Apellidos_Persona            String   @db.VarChar(100)
+    Genero                       String   @db.Char(1)
+    Nombre_Usuario_Temporal      String   @unique @db.VarChar(100)
     Contraseña_Usuario_Temporal String   @db.VarChar(300)
-    Ruta_Foto_Perfil            String?  @db.VarChar(300)
-    Fecha_Hora_Inicio           DateTime
-    Fecha_Hora_Final            DateTime
-    Estado                      Boolean
+    Ruta_Foto_Perfil             String?  @db.VarChar(300)
+    Fecha_Hora_Inicio            DateTime
+    Fecha_Hora_Final             DateTime
+    Estado                       Boolean
 }
 
 model T_Codigos_OTP {
-  Id_Codigo_OTP    Int    @id @default(autoincrement())
-  Codigo           String @db.VarChar(6)
-  Timestamp_Creacion   BigInt
-  Timestamp_Expiracion BigInt
-  Correo_Destino   String @db.VarChar(70)
-  Tipo_Usuario      String @db.VarChar(2)
-  Id_Usuario       String @db.VarChar(20)
+    Id_Codigo_OTP        Int    @id @default(autoincrement())
+    Codigo               String @db.VarChar(6)
+    Timestamp_Creacion   BigInt
+    Timestamp_Expiracion BigInt
+    Correo_Destino       String @db.VarChar(70)
+    Tipo_Usuario         String @db.VarChar(2)
+    Id_Usuario           String @db.VarChar(20)
 
-  @@map("T_Codigos_OTP")
+    @@map("T_Codigos_OTP")
+}
+
+model T_Intructores {
+    Identificador_Instructor String    @id @db.VarChar(20)
+    Nombres                  String    @db.VarChar(80)
+    Apellidos                String    @db.VarChar(100)
+    Celular                  String    @db.VarChar(20)
+    Correo                   String?   @db.VarChar(200)
+    Ruta_Curriculum          String?   @db.VarChar(300)
+    Ruta_Firma               String    @db.VarChar(300)
+    CIP                      String    @db.VarChar(15)
+    Estado_Verificacion_CIP  String    @db.Char(1)
+    Fecha_Verificacion_CIP   DateTime? @db.Date
+
+    // Relaciones
+    Clases T_Clases[]
+}
+
+model T_Curso {
+    Id_Curso              Int    @id @default(autoincrement())
+    Nombre_Completo_Curso String @unique @db.VarChar(300)
+    Abreviatura           String @unique @db.VarChar(10)
+    Ruta_Icono            String @db.VarChar(300)
+    Ruta_Imagen_Portada   Json?
+
+    // Relaciones
+    Temas_Curso T_Temas_Curso[]
+    Preguntas   T_Preguntas[]
+    Clases      T_Clases[]
+}
+
+model T_Temas_Curso {
+    Id_Tema_Curso Int    @id @default(autoincrement())
+    Orden         Int
+    Titulo        String @db.VarChar(300)
+    Id_Curso      Int
+
+    // Relaciones
+    Curso     T_Curso       @relation(fields: [Id_Curso], references: [Id_Curso])
+    Preguntas T_Preguntas[]
+}
+
+model T_Preguntas {
+    Id_Pregunta   Int    @id @default(autoincrement())
+    Dificultad    Int    @db.SmallInt
+    Enunciado     String @db.VarChar(300)
+    Alternativas  Json
+    Id_Curso      Int
+    Id_Tema_Curso Int?
+
+    // Relaciones
+    Curso              T_Curso                @relation(fields: [Id_Curso], references: [Id_Curso])
+    Tema_Curso         T_Temas_Curso?         @relation(fields: [Id_Tema_Curso], references: [Id_Tema_Curso])
+    Preguntas_Examenes T_Preguntas_Examenes[]
+}
+
+model T_Examenes {
+    Id_Examen                  Int      @id @default(autoincrement())
+    Duracion_Examen_Inicio_Min Int
+    Duracion_Examen_Final_Min  Int
+    Puntaje_Maximo             Int
+    Puntaje_Aprobatorio        Int
+    Hora_Inicio_Examen_Inicio  DateTime @db.Date
+    Hora_Inicio_Examen_Final   DateTime @db.Date
+
+    // Relaciones
+    Preguntas_Examenes T_Preguntas_Examenes[]
+    Clases             T_Clases[]
+}
+
+model T_Preguntas_Examenes {
+    Id_Pregunta_Examen      Int   @id @default(autoincrement())
+    Id_Pregunta             Int
+    Id_Examen               Int
+    Puntaje_Pregunta_Examen Float
+
+    // Relaciones
+    Pregunta T_Preguntas @relation(fields: [Id_Pregunta], references: [Id_Pregunta])
+    Examen   T_Examenes  @relation(fields: [Id_Examen], references: [Id_Examen])
+}
+
+model T_Clases {
+    Id_Clase                 String   @id @db.VarChar(8)
+    Fecha_Clase              DateTime @db.Date
+    Hora_Inicio              DateTime
+    Rutas_Fotos              Json?
+    Rutas_Videos             Json?
+    Minimo_Estudiantes       Int
+    Duracion_Horas           Float
+    Identificador_Instructor String   @db.VarChar(20)
+    Codigo_Curso             Int
+    Id_Examen                Int
+
+    // Relaciones
+    Instructor             T_Intructores                  @relation(fields: [Identificador_Instructor], references: [Identificador_Instructor])
+    Curso                  T_Curso                        @relation(fields: [Codigo_Curso], references: [Id_Curso])
+    Examen                 T_Examenes                     @relation(fields: [Id_Examen], references: [Id_Examen])
+    Capacitaciones_Empresa T_Capacitaciones_Por_Empresa[]
+}
+
+model T_Capacitaciones_Por_Empresa {
+    Id_Capacitacion_Empresa              Int    @id @default(autoincrement())
+    Numero_Capacitacion_Segun_Curso      Int
+    Ruta_Informe_Final                   String @db.VarChar(300)
+    Ruta_Registro_Capacitacion           String @db.VarChar(300)
+    Correo_Destinatario_Envio_Resultados String @db.VarChar(200)
+    Id_Clase                             String @db.VarChar(8)
+
+    // Relaciones
+    Clase                    T_Clases                          @relation(fields: [Id_Clase], references: [Id_Clase])
+    Capacitaciones_Empleados T_Capacitacion_Empleado_Empresa[]
+    Certificados             T_Certificados[]
+}
+
+model T_Capacitacion_Empleado_Empresa {
+    Id_Capacitacion_Empleado_Empresa     Int    @id @default(autoincrement())
+    Resultado_Examen_Inicio              Json
+    Resultados_Examen_Final              Json
+    Ruta_Registro_Capacitacion           String @db.VarChar(300)
+    Correo_Destinatario_Envio_Resultados String @db.VarChar(255)
+    Id_Capacitacion_Empresa              Int
+    Id_Empleado_Empresa                  Int
+
+    // Relaciones
+    Capacitacion_Empresa T_Capacitaciones_Por_Empresa @relation(fields: [Id_Capacitacion_Empresa], references: [Id_Capacitacion_Empresa])
+    Empleado_Empresa     T_Empleados_Empresas         @relation(fields: [Id_Empleado_Empresa], references: [Id_Empleado_Empresa])
+}
+
+model T_Empresas {
+    Id_Empresa        Int     @id @default(autoincrement())
+    RUC               String  @unique @db.VarChar(11)
+    Razon_Social      String  @db.VarChar(250)
+    Celular_Contacto  String  @db.VarChar(20)
+    Telefono_Contacto String? @db.VarChar(20)
+    Correo_Contacto   String  @db.VarChar(255)
+
+    // Relaciones
+    Empleados T_Empleados_Empresas[]
+}
+
+model T_Personas {
+    Identificador_Persona String   @id @db.VarChar(20)
+    Nombres               String   @db.VarChar(80)
+    Apellidos             String   @db.VarChar(100)
+    Celular               String?  @db.VarChar(20)
+    Correo                String?  @db.VarChar(200)
+    Ruta_Foto             String?  @db.VarChar(300)
+    Fecha_Registro        DateTime @default(now()) @db.Date
+
+    // Relaciones
+    Empleados_Empresas         T_Empleados_Empresas[]
+    Capacitaciones_Persona_Nat T_Capacitacion_Persona_Natural[]
+}
+
+model T_Empleados_Empresas {
+    Id_Empleado_Empresa         Int       @id @default(autoincrement())
+    Cargo_Empleado              String?   @db.VarChar(150)
+    Correo_Corporativo_Empleado String?   @db.VarChar(255)
+    Id_Empresa                  Int
+    Id_Persona                  String    @db.VarChar(20)
+    Fecha_Asignacion            DateTime @db.Date
+    Fecha_Fin_Asignacion        DateTime? @db.Date
+
+    // Relaciones
+    Empresa                 T_Empresas                        @relation(fields: [Id_Empresa], references: [Id_Empresa])
+    Persona                 T_Personas                        @relation(fields: [Id_Persona], references: [Identificador_Persona])
+    Capacitaciones_Empleado T_Capacitacion_Empleado_Empresa[]
+}
+
+model T_Capacitacion_Varias_Personas_Naturales {
+    Id_Capacitacion_Personas_Naturales Int     @id @default(autoincrement())
+    Numero_Capacitacion_Segun_Curso    Int
+    Ruta_Informe_Final                 String  @db.VarChar(300)
+    Celular                            String  @db.VarChar(20)
+    Correo                             String? @db.VarChar(200)
+    Ruta_Foto                          String  @db.VarChar(300)
+
+    // Relaciones
+    Capacitaciones_Persona_Natural T_Capacitacion_Persona_Natural[]
+}
+
+model T_Capacitacion_Persona_Natural {
+    Id_Capacitacion_Persona_Natural           Int    @id @default(autoincrement())
+    Id_Capacitacion_Varias_Personas_Naturales Int
+    Identificador_Persona                     String @db.VarChar(20)
+
+    // Relaciones
+    Capacitacion_Varias_Personas_Naturales T_Capacitacion_Varias_Personas_Naturales @relation(fields: [Id_Capacitacion_Varias_Personas_Naturales], references: [Id_Capacitacion_Personas_Naturales])
+    Persona                                T_Personas                               @relation(fields: [Identificador_Persona], references: [Identificador_Persona])
+    Certificados                           T_Certificados[]
+}
+
+model T_Certificados {
+    Id_Certificado                  Int    @id @default(autoincrement())
+    Codigo_Certificado              String @db.VarChar(200)
+    Tipo                            String @db.Char(1)
+    Id_Capacitacion_Persona_Natural Int?
+    Id_Capacitacion_Por_Empresa     Int?
+
+    // Relaciones
+    Capacitacion_Persona_Natural T_Capacitacion_Persona_Natural? @relation(fields: [Id_Capacitacion_Persona_Natural], references: [Id_Capacitacion_Persona_Natural])
+    Capacitacion_Por_Empresa     T_Capacitaciones_Por_Empresa?   @relation(fields: [Id_Capacitacion_Por_Empresa], references: [Id_Capacitacion_Empresa])
 }

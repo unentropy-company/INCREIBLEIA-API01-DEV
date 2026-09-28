@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "T_Personas" ALTER COLUMN "Celular" DROP NOT NULL,
+ALTER COLUMN "Ruta_Foto" DROP NOT NULL;

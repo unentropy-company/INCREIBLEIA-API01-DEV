@@ -24,5 +24,5 @@ export interface RequestBodyUpdateMiPerfil {
 }
 
 export type ResponseSuccessUpdateMiPerfil = ApiResponseBase & {
-  data: RequestBodyUpdateMiPerfil;
+  data: MiPerfilData;
 };
