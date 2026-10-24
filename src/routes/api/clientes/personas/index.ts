@@ -23,6 +23,7 @@ import { parsearDocumentoIdentidad } from "../../../../lib/utils/formatters/docu
 import { listarPersonasConDetalles } from "../../../../core/databases/queries/personas/listarPersonasConDetalles";
 import { obtenerUltimosRegistrosPersonas } from "../../../../core/databases/queries/personas/obtenerUltimosRegistrosPersonas";
 import { obtenerIndicadoresPersonas } from "../../../../core/databases/queries/personas/listarPersonasConIndicadores";
+import detallePersonaRouter from "./[identificadorPersona]";
 
 const personasRouter = Router();
 
@@ -426,5 +427,7 @@ personasRouter.get(
     }
   },
 );
+
+personasRouter.use(detallePersonaRouter);
 
 export default personasRouter;

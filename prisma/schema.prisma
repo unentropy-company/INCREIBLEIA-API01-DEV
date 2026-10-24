@@ -178,7 +178,7 @@ model T_Empresas {
     Id_Empresa        Int     @id @default(autoincrement())
     RUC               String  @unique @db.VarChar(11)
     Razon_Social      String  @db.VarChar(250)
-    Celular_Contacto  String  @db.VarChar(20)
+    Celular_Contacto  String?  @db.VarChar(20)
     Telefono_Contacto String? @db.VarChar(20)
     Correo_Contacto   String  @db.VarChar(255)
 
@@ -194,6 +194,7 @@ model T_Personas {
     Correo                String?  @db.VarChar(200)
     Ruta_Foto             String?  @db.VarChar(300)
     Fecha_Registro        DateTime @default(now()) @db.Date
+    Fecha_Actualizacion   DateTime? @db.Date
 
     // Relaciones
     Empleados_Empresas         T_Empleados_Empresas[]
