@@ -37,6 +37,8 @@ const personasRouter = Router();
  *     summary: Obtener listado de personas con filtros avanzados, métricas y certificados
  *     description: >
  *       Retorna una lista paginada de personas con convenciones de nomenclatura en Pascal_Snake_Case.
+ *       Permite filtrar por empresa actual utilizando su ID numérico o pasando `0` para filtrar
+ *       exclusivamente a las personas que actualmente NO cuentan con una empresa asignada activa.
  *     tags:
  *       - Personas
  *     security:
@@ -47,26 +49,30 @@ const personasRouter = Router();
  *         required: false
  *         schema:
  *           type: string
- *         description: Búsqueda flexible por nombres, apellidos o identificador.
+ *         description: "Búsqueda flexible por nombres, apellidos o número de documento (antes del guion)."
+ *         example: "Felipe Soto"
  *       - in: query
  *         name: idEmpresa
  *         required: false
  *         schema:
  *           type: integer
- *         description: Filtra por el identificador de la empresa activa actual asignada.
+ *           minimum: 0
+ *         description: "Identificador de la empresa activa asignada. Mínimo: 0. Si es 0 filtra sin empresa, si es mayor a 0 filtra por el ID correspondiente. Sin valor predeterminado."
+ *         example: 0
  *       - in: query
  *         name: tipoDocumento
  *         required: false
  *         schema:
- *           type: integer
- *           enum: [1, 2, 3]
- *         description: 1 = DNI, 2 = Carnet de Extranjería / CE, 3 = Pasaporte.
+ *           type: string
+ *         description: "Tipo de documento (resuelto por el sufijo del identificador: 1 = DNI, 2 = CE, 3 = Pasaporte). Admite valores separados por coma (ej. '1' o '1,2')."
+ *         example: "1,2"
  *       - in: query
  *         name: tieneCertificados
  *         required: false
  *         schema:
  *           type: boolean
- *         description: true = con certificados, false = sin certificados, omitir = ambos.
+ *         description: "Filtro por tenencia de certificados: true (al menos 1 certificado), false (0 certificados), o no enviar para omitir el filtro."
+ *         example: true
  *       - in: query
  *         name: pagina
  *         required: false
@@ -74,7 +80,8 @@ const personasRouter = Router();
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         description: Número de página.
+ *         description: "Número de página a consultar. Mínimo: 1. Predeterminado: 1."
+ *         example: 1
  *       - in: query
  *         name: limite
  *         required: false
@@ -83,94 +90,17 @@ const personasRouter = Router();
  *           minimum: 1
  *           maximum: 50
  *           default: 6
- *         description: Cantidad de registros por página.
+ *         description: "Cantidad de registros por página. Mínimo: 1, máximo: 50. Predeterminado: 6."
+ *         example: 6
  *     responses:
  *       200:
  *         description: Listado obtenido exitosamente.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Listado de personas obtenido exitosamente"
- *                 data:
- *                   type: object
- *                   properties:
- *                     Indicadores:
- *                       type: object
- *                       properties:
- *                         Total_Personas:
- *                           type: integer
- *                           example: 18
- *                         Total_Personas_Sin_Empresa:
- *                           type: integer
- *                           example: 11
- *                     Total_Resultados_Filtrados:
- *                       type: integer
- *                       example: 14
- *                     Pagina_Actual:
- *                       type: integer
- *                       example: 1
- *                     Total_Paginas:
- *                       type: integer
- *                       example: 3
- *                     items:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           Identificador_Persona:
- *                             type: string
- *                             example: "71986445-1"
- *                           Documento:
- *                             type: object
- *                             properties:
- *                               Identificador_Completo:
- *                                 type: string
- *                                 example: "71986445-1"
- *                               Numero_Documento:
- *                                 type: string
- *                                 example: "71986445"
- *                               Tipo_Documento_Id:
- *                                 type: integer
- *                                 example: 1
- *                               Tipo_Documento_Nombre:
- *                                 type: string
- *                                 example: "DNI"
- *                           Nombres:
- *                             type: string
- *                             example: "Felipe Matías"
- *                           Apellidos:
- *                             type: string
- *                             example: "Soto Chávez"
- *                           Foto_Perfil_URL:
- *                             type: string
- *                             nullable: true
- *                             example: null
- *                           Empresa_Actual:
- *                             type: object
- *                             nullable: true
- *                             properties:
- *                               Id_Empresa:
- *                                 type: integer
- *                                 example: 1
- *                               Razon_Social:
- *                                 type: string
- *                                 example: "MINERA LOS ANDES S.A.C."
- *                           Certificados:
- *                             type: object
- *                             properties:
- *                               Vigentes:
- *                                 type: integer
- *                                 example: 0
- *                               Vencidos:
- *                                 type: integer
- *                                 example: 0
+ *       400:
+ *         description: Parámetros de consulta no válidos.
+ *       401:
+ *         description: No autorizado - Token JWT ausente o inválido.
+ *       500:
+ *         description: Error interno al consultar la base de datos.
  */
 personasRouter.get(
   "/",
@@ -300,7 +230,7 @@ personasRouter.get(
  *           minimum: 0
  *           maximum: 10
  *           default: 0
- *         description: Días máximos de antigüedad (0 = hoy).
+ *         description: "Días máximos de antigüedad del registro (0 representa únicamente los del día de hoy). Mínimo: 0, máximo: 10. Predeterminado: 0."
  *         example: 0
  *       - in: query
  *         name: limite
@@ -308,63 +238,13 @@ personasRouter.get(
  *         schema:
  *           type: integer
  *           minimum: 1
- *           maximum: 20
+ *           maximum: 5
  *           default: 5
- *         description: Límite de registros.
+ *         description: "Cantidad de registros recientes a retornar. Mínimo: 1, máximo: 5. Predeterminado: 5."
  *         example: 4
  *     responses:
  *       200:
  *         description: Últimos registros obtenidos exitosamente.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Últimos registros obtenidos exitosamente"
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       Identificador_Persona:
- *                         type: string
- *                         example: "98364442-1"
- *                       Documento:
- *                         type: object
- *                         properties:
- *                           Identificador_Completo:
- *                             type: string
- *                             example: "98364442-1"
- *                           Numero_Documento:
- *                             type: string
- *                             example: "98364442"
- *                           Tipo_Documento_Id:
- *                             type: integer
- *                             example: 1
- *                           Tipo_Documento_Nombre:
- *                             type: string
- *                             example: "DNI"
- *                       Nombres:
- *                         type: string
- *                         example: "Roberto"
- *                       Apellidos:
- *                         type: string
- *                         example: "Sanchez Carlo"
- *                       Empresa_Actual:
- *                         type: object
- *                         nullable: true
- *                         properties:
- *                           Id_Empresa:
- *                             type: integer
- *                             example: 5
- *                           Razon_Social:
- *                             type: string
- *                             example: "Agroind. del Sur"
  *       400:
  *         description: Parámetro diasMaximos o limite con valor fuera de rango.
  *       401:

@@ -13,11 +13,15 @@ import {
   PersonaDatosFormulario,
   ResponseDetallePersonaData,
   ResponseSuccessGetDetallePersona,
-  SeccionDetallePersona
+  SeccionDetallePersona,
 } from "../../../../../interfaces/shared/apis/api01/personas/[identificadorPersona]/types";
 import { obtenerDetallePersonaPorId } from "../../../../../core/databases/queries/personas/obtenerDetallePersonaPorId";
 import { ErrorResponseAPIBase } from "../../../../../interfaces/shared/apis/types";
-import { SystemErrorTypes, UserErrorTypes, ValidationErrorTypes } from "../../../../../interfaces/shared/errors";
+import {
+  SystemErrorTypes,
+  UserErrorTypes,
+  ValidationErrorTypes,
+} from "../../../../../interfaces/shared/errors";
 import { r2StorageClient } from "../../../../../core/buckets/connectors/CloudfareR2";
 import { obtenerHistorialLaboralPersona } from "../../../../../core/databases/queries/personas/obtenerHistorialLaboralPersona";
 import { parsearDocumentoIdentidad } from "../../../../../lib/utils/formatters/documentosIdentidad";
@@ -46,7 +50,7 @@ const detallePersonaRouter = Router();
  *         required: true
  *         schema:
  *           type: string
- *         description: Identificador compuesto de la persona (ej. 10928374-1).
+ *         description: "Identificador compuesto de la persona (ej. 10928374-1)."
  *         example: "10928374-1"
  *       - in: query
  *         name: incluir
@@ -55,7 +59,7 @@ const detallePersonaRouter = Router();
  *           type: string
  *           enum: [detalles, historial, todos]
  *           default: todos
- *         description: Sección(es) a retornar en la respuesta.
+ *         description: "Sección(es) a retornar en la respuesta ('detalles', 'historial' o 'todos'). Predeterminado: todos."
  *       - in: query
  *         name: paginaHistorial
  *         required: false
@@ -63,7 +67,8 @@ const detallePersonaRouter = Router();
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         description: Número de página del historial laboral.
+ *         description: "Número de página para el historial laboral. Mínimo: 1. Predeterminado: 1."
+ *         example: 1
  *       - in: query
  *         name: limiteHistorial
  *         required: false
@@ -72,149 +77,11 @@ const detallePersonaRouter = Router();
  *           minimum: 1
  *           maximum: 20
  *           default: 5
- *         description: Cantidad de registros por página en el historial laboral.
+ *         description: "Cantidad de registros por página en el historial laboral. Mínimo: 1, máximo: 20. Predeterminado: 5."
+ *         example: 5
  *     responses:
  *       200:
  *         description: Datos obtenidos exitosamente.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Detalles de la persona obtenidos exitosamente"
- *                 data:
- *                   type: object
- *                   properties:
- *                     Persona:
- *                       type: object
- *                       nullable: true
- *                       properties:
- *                         Identificador_Persona:
- *                           type: string
- *                           example: "10928374-1"
- *                         Documento:
- *                           type: object
- *                           properties:
- *                             Identificador_Completo:
- *                               type: string
- *                               example: "10928374-1"
- *                             Numero_Documento:
- *                               type: string
- *                               example: "10928374"
- *                             Tipo_Documento_Id:
- *                               type: integer
- *                               example: 1
- *                             Tipo_Documento_Nombre:
- *                               type: string
- *                               example: "DNI"
- *                         Nombres:
- *                           type: string
- *                           example: "Jorge Luis"
- *                         Apellidos:
- *                           type: string
- *                           example: "Ramírez Flores"
- *                         Celular:
- *                           type: string
- *                           nullable: true
- *                           example: "934567890"
- *                         Correo:
- *                           type: string
- *                           nullable: true
- *                           example: "jorge.ramirez@gmail.com"
- *                         Foto_Perfil_URL:
- *                           type: string
- *                           nullable: true
- *                           example: null
- *                         Fecha_Registro:
- *                           type: string
- *                           example: "2025-03-14"
- *                         Fecha_Actualizacion:
- *                           type: string
- *                           nullable: true
- *                           example: "2026-09-02"
- *                         Empleo_Actual:
- *                           type: object
- *                           nullable: true
- *                           properties:
- *                             Id_Empleado_Empresa:
- *                               type: integer
- *                               example: 3
- *                             Id_Empresa:
- *                               type: integer
- *                               example: 3
- *                             RUC:
- *                               type: string
- *                               example: "20491827361"
- *                             Razon_Social:
- *                               type: string
- *                               example: "LOGISTICA & TRANSPORTES DEL SUR S.A."
- *                             Cargo_Empleado:
- *                               type: string
- *                               nullable: true
- *                               example: "Jefe de Flota y Mantenimiento"
- *                             Correo_Corporativo_Empleado:
- *                               type: string
- *                               nullable: true
- *                               example: "jorge.ramirez@logisur.com.pe"
- *                             Fecha_Asignacion:
- *                               type: string
- *                               nullable: true
- *                               example: "2022-01-10"
- *                     Historial_Laboral:
- *                       type: object
- *                       nullable: true
- *                       properties:
- *                         Total_Registros:
- *                           type: integer
- *                           example: 1
- *                         Pagina_Actual:
- *                           type: integer
- *                           example: 1
- *                         Total_Paginas:
- *                           type: integer
- *                           example: 1
- *                         items:
- *                           type: array
- *                           items:
- *                             type: object
- *                             properties:
- *                               Id_Empleado_Empresa:
- *                                 type: integer
- *                                 example: 3
- *                               Cargo:
- *                                 type: string
- *                                 example: "Jefe de Flota y Mantenimiento"
- *                               Fecha_Inicio:
- *                                 type: string
- *                                 example: "2022-01-10"
- *                               Fecha_Fin:
- *                                 type: string
- *                                 nullable: true
- *                                 example: null
- *                               Periodo_Texto:
- *                                 type: string
- *                                 example: "2022-01-10 — Actual"
- *                               Estado:
- *                                 type: string
- *                                 enum: [Vigente, Cerrado]
- *                                 example: "Vigente"
- *                               Empresa:
- *                                 type: object
- *                                 properties:
- *                                   Id_Empresa:
- *                                     type: integer
- *                                     example: 3
- *                                   RUC:
- *                                     type: string
- *                                     example: "20491827361"
- *                                   Razon_Social:
- *                                     type: string
- *                                     example: "LOGISTICA & TRANSPORTES DEL SUR S.A."
  *       400:
  *         description: Parámetros inválidos.
  *       401:
@@ -231,7 +98,9 @@ detallePersonaRouter.get(
   checkAuthentication,
   async (req: Request, res: Response) => {
     try {
-      const paramsValidation = getDetallePersonaParamsSchema.safeParse(req.params);
+      const paramsValidation = getDetallePersonaParamsSchema.safeParse(
+        req.params,
+      );
       const queryValidation = getDetallePersonaQuerySchema.safeParse(req.query);
 
       if (!paramsValidation.success || !queryValidation.success) {
@@ -244,7 +113,8 @@ detallePersonaRouter.get(
       }
 
       const { idPersona } = paramsValidation.data;
-      const { incluir, paginaHistorial, limiteHistorial } = queryValidation.data;
+      const { incluir, paginaHistorial, limiteHistorial } =
+        queryValidation.data;
 
       const cargarDetalles =
         incluir === SeccionDetallePersona.TODOS ||
@@ -256,9 +126,15 @@ detallePersonaRouter.get(
       const offsetHistorial = (paginaHistorial - 1) * limiteHistorial;
 
       const [personaDb, historialDb] = await Promise.all([
-        cargarDetalles ? obtenerDetallePersonaPorId(idPersona) : Promise.resolve(null),
+        cargarDetalles
+          ? obtenerDetallePersonaPorId(idPersona)
+          : Promise.resolve(null),
         cargarHistorial
-          ? obtenerHistorialLaboralPersona(idPersona, limiteHistorial, offsetHistorial)
+          ? obtenerHistorialLaboralPersona(
+              idPersona,
+              limiteHistorial,
+              offsetHistorial,
+            )
           : Promise.resolve(null),
       ]);
 
@@ -293,7 +169,8 @@ detallePersonaRouter.get(
               RUC: personaDb.RUC!,
               Razon_Social: personaDb.Razon_Social!,
               Cargo_Empleado: personaDb.Cargo_Empleado,
-              Correo_Corporativo_Empleado: personaDb.Correo_Corporativo_Empleado,
+              Correo_Corporativo_Empleado:
+                personaDb.Correo_Corporativo_Empleado,
               Fecha_Asignacion: personaDb.Fecha_Asignacion,
             }
           : null;
@@ -318,7 +195,8 @@ detallePersonaRouter.get(
         const historialData: HistorialLaboralPaginado = {
           Total_Registros: historialDb.totalRegistros,
           Pagina_Actual: paginaHistorial,
-          Total_Paginas: Math.ceil(historialDb.totalRegistros / limiteHistorial) || 1,
+          Total_Paginas:
+            Math.ceil(historialDb.totalRegistros / limiteHistorial) || 1,
           items: historialDb.items,
         };
 

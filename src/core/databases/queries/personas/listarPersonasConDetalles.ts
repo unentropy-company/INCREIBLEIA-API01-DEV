@@ -44,9 +44,15 @@ export async function listarPersonasConDetalles(
     );
   }
 
+  // Si idEmpresa === 0 => Filtra personas que NO tienen empresa activa actualmente (Sin Empresa).
+  // Si idEmpresa > 0   => Filtra personas que laboran activamente en dicha empresa.
   if (idEmpresa !== undefined) {
-    params.push(idEmpresa);
-    conditions.push(`(emp_actual."Id_Empresa" = $${params.length})`);
+    if (idEmpresa === 0) {
+      conditions.push(`(emp_actual."Id_Empresa" IS NULL)`);
+    } else {
+      params.push(idEmpresa);
+      conditions.push(`(emp_actual."Id_Empresa" = $${params.length})`);
+    }
   }
 
   if (tieneCertificados !== undefined) {

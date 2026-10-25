@@ -4,8 +4,8 @@ export const getListadoPersonasQuerySchema = z.object({
   search: z.string().trim().optional(),
   pagina: z.coerce.number().int().positive().default(1),
   limite: z.coerce.number().int().positive().max(50).default(6),
-  idEmpresa: z.coerce.number().int().positive().optional(),
-  // Soporta valores únicos (1) o listas separadas por comas ("1,2")
+  // .nonnegative() permite 0 y enteros positivos
+  idEmpresa: z.coerce.number().int().nonnegative().optional(),
   tipoDocumento: z
     .string()
     .trim()
@@ -20,10 +20,8 @@ export const getListadoPersonasQuerySchema = z.object({
     }),
   tieneCertificados: z
     .preprocess((val) => {
-      if (val === "true" || val === true || val === 1 || val === "1")
-        return true;
-      if (val === "false" || val === false || val === 0 || val === "0")
-        return false;
+      if (val === "true" || val === true || val === 1 || val === "1") return true;
+      if (val === "false" || val === false || val === 0 || val === "0") return false;
       return undefined;
     }, z.boolean().optional())
     .optional(),
