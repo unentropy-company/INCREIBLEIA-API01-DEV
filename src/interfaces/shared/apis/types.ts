@@ -1,7 +1,6 @@
 import AllErrorTypes from "../errors";
 import { ErrorDetails } from "../errors/details";
 
-
 export interface MessageProperty {
   message: string;
 }
@@ -26,4 +25,8 @@ export interface ErrorResponseAPIBase extends ApiResponseBase {
   details?: ErrorDetails;
   errorType?: AllErrorTypes;
   conflictField?: string;
+  /**
+   * Mapeo de errores de validación por campo (ej. devuelto por Zod flatten().fieldErrors)
+   */
+  errors?: Record<string, string[] | undefined>;
 }
