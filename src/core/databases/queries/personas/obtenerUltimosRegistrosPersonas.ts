@@ -4,6 +4,8 @@ export interface UltimoRegistroPersonaDbRow {
   Identificador_Persona: string;
   Nombres: string;
   Apellidos: string;
+  Ruta_Foto: string | null;
+  Fecha_Registro: string;
   Id_Empresa: number | null;
   Razon_Social: string | null;
 }
@@ -17,6 +19,8 @@ export async function obtenerUltimosRegistrosPersonas(
       p."Identificador_Persona",
       p."Nombres",
       p."Apellidos",
+      p."Ruta_Foto",
+      p."Fecha_Registro",
       emp_actual."Id_Empresa",
       emp_actual."Razon_Social"
     FROM "T_Personas" p
@@ -31,10 +35,11 @@ export async function obtenerUltimosRegistrosPersonas(
       ORDER BY ee."Fecha_Asignacion" DESC NULLS LAST, ee."Id_Empleado_Empresa" DESC
       LIMIT 1
     ) emp_actual ON TRUE
-    ORDER BY p."Identificador_Persona" DESC
-    LIMIT $1;
+    WHERE p."Fecha_Registro" >= (CURRENT_DATE - ($1 || ' days')::INTERVAL)
+    ORDER BY p."Fecha_Registro" DESC, p."Identificador_Persona" DESC
+    LIMIT $2;
   `;
 
-  const result = await query(sql, [limite]);
+  const result = await query(sql, [diasMaximos, limite]);
   return result.rows;
 }

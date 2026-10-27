@@ -220,16 +220,13 @@ personasRouter.get(
 );
 
 // =======================================================================================
-//                  DOCUMENTACIÓN SWAGGER / OPENAPI (GET /personas/ultimos-registros)
+//                   DOCUMENTACIÓN SWAGGER / OPENAPI (GET /personas/ultimos-registros)
 // =======================================================================================
 /**
  * @openapi
  * /clientes/personas/ultimos-registros:
  *   get:
- *     summary: Obtener los últimos registros de personas para el widget lateral
- *     description: >
- *       Retorna los registros de personas más recientes limitados a una antigüedad de 0 a 10 días.
- *       Incluye únicamente el identificador desglosado, nombres, apellidos y empresa actual activa si la tiene.
+ *     summary: Obtener los últimos registros de personas para el widget lateral con foto de perfil
  *     tags:
  *       - Personas
  *     security:
@@ -243,8 +240,7 @@ personasRouter.get(
  *           minimum: 0
  *           maximum: 10
  *           default: 0
- *         description: "Días máximos de antigüedad del registro (0 representa únicamente los del día de hoy). Mínimo: 0, máximo: 10. Predeterminado: 0."
- *         example: 0
+ *         description: "Días máximos de antigüedad del registro (0 representa únicamente los del día de hoy)."
  *       - in: query
  *         name: limite
  *         required: false
@@ -253,13 +249,12 @@ personasRouter.get(
  *           minimum: 1
  *           maximum: 5
  *           default: 5
- *         description: "Cantidad de registros recientes a retornar. Mínimo: 1, máximo: 5. Predeterminado: 5."
- *         example: 4
+ *         description: "Cantidad de registros recientes a retornar."
  *     responses:
  *       200:
  *         description: Últimos registros obtenidos exitosamente.
  *       400:
- *         description: Parámetro diasMaximos o limite con valor fuera de rango.
+ *         description: Parámetros inválidos.
  *       401:
  *         description: No autorizado.
  *       500:
@@ -279,7 +274,7 @@ personasRouter.get(
       if (!queryValidation.success) {
         const errorResponse: ErrorResponseAPIBase = {
           success: false,
-          message: "El parámetro diasMaximos debe ser un entero entre 0 y 10",
+          message: "Parámetros inválidos para la consulta de últimos registros",
           errorType: ValidationErrorTypes.INVALID_FORMAT,
         };
         return res.status(400).json(errorResponse);
@@ -291,18 +286,37 @@ personasRouter.get(
         limite,
       );
 
-      const items: UltimoRegistroPersonaItem[] = registros.map((p) => ({
-        Identificador_Persona: p.Identificador_Persona,
-        Documento: parsearDocumentoIdentidad(p.Identificador_Persona),
-        Nombres: p.Nombres,
-        Apellidos: p.Apellidos,
-        Empresa_Actual: p.Id_Empresa
-          ? {
-              Id_Empresa: p.Id_Empresa,
-              Razon_Social: p.Razon_Social!,
+      // Generar URL prefirmada de R2 si la persona tiene foto subida
+      const items: UltimoRegistroPersonaItem[] = await Promise.all(
+        registros.map(async (p) => {
+          let fotoUrl: string | null = null;
+
+          if (p.Ruta_Foto) {
+            try {
+              fotoUrl = await r2StorageClient.getPresignedDownloadUrl(
+                p.Ruta_Foto,
+                ADMINISTRADORES_SESSION_EXPIRATION + 300,
+              );
+            } catch {
+              fotoUrl = null;
             }
-          : null,
-      }));
+          }
+
+          return {
+            Identificador_Persona: p.Identificador_Persona,
+            Documento: parsearDocumentoIdentidad(p.Identificador_Persona),
+            Nombres: p.Nombres,
+            Apellidos: p.Apellidos,
+            Foto_Perfil_URL: fotoUrl,
+            Empresa_Actual: p.Id_Empresa
+              ? {
+                  Id_Empresa: p.Id_Empresa,
+                  Razon_Social: p.Razon_Social!,
+                }
+              : null,
+          };
+        }),
+      );
 
       return res.status(200).json({
         success: true,
