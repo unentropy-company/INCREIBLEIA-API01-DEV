@@ -44,4 +44,5 @@ export interface UltimoRegistroPersonaItem {
   Nombres: string;
   Apellidos: string;
   Empresa_Actual: EmpresaActualPersona | null;
+  Foto_Perfil_URL: string | null;
 }

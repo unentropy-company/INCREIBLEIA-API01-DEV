@@ -220,7 +220,7 @@ personasRouter.get(
 );
 
 // =======================================================================================
-//                   DOCUMENTACIÓN SWAGGER / OPENAPI (GET /personas/ultimos-registros)
+//                   DOCUMENTACIÓN SWAGGER / OPENAPI (GET /clientes/personas/ultimos-registros)
 // =======================================================================================
 /**
  * @openapi
@@ -334,6 +334,7 @@ personasRouter.get(
     }
   },
 );
+
 
 /**
  * @openapi
@@ -569,6 +570,19 @@ personasRouter.post(
         });
       }
 
+      // 7. Generar URL prefirmada para el frontend (sin exponer la ruta física de R2)
+      let fotoPerfilUrl: string | null = null;
+      if (rutaFotoSubida) {
+        try {
+          fotoPerfilUrl = await r2StorageClient.getPresignedDownloadUrl(
+            rutaFotoSubida,
+            ADMINISTRADORES_SESSION_EXPIRATION + 300,
+          );
+        } catch {
+          fotoPerfilUrl = null;
+        }
+      }
+
       return res.status(201).json({
         success: true,
         message: "Persona registrada exitosamente",
@@ -576,7 +590,7 @@ personasRouter.post(
           Identificador_Persona: personaCreada.Identificador_Persona,
           Nombres: personaCreada.Nombres,
           Apellidos: personaCreada.Apellidos,
-          Ruta_Foto: personaCreada.Ruta_Foto,
+          Foto_Perfil_URL: fotoPerfilUrl,
           Fecha_Registro: personaCreada.Fecha_Registro,
           Empresa_Asignada: vinculoLaboral
             ? {
