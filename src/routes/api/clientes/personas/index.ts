@@ -28,7 +28,7 @@ import { parsearDocumentoIdentidad } from "../../../../lib/utils/formatters/docu
 import { listarPersonasConDetalles } from "../../../../core/databases/queries/personas/listarPersonasConDetalles";
 import { obtenerUltimosRegistrosPersonas } from "../../../../core/databases/queries/personas/obtenerUltimosRegistrosPersonas";
 import { obtenerIndicadoresPersonas } from "../../../../core/databases/queries/personas/listarPersonasConIndicadores";
-import detallePersonaRouter from "./[identificadorPersona]";
+import personaPorIdentificadorRouter from "./[identificadorPersona]";
 import {
   eliminarPersonaPorIdentificador,
   insertarEmpleadoEmpresa,
@@ -335,7 +335,6 @@ personasRouter.get(
   },
 );
 
-
 /**
  * @openapi
  * /clientes/personas:
@@ -638,6 +637,6 @@ personasRouter.post(
   },
 );
 
-personasRouter.use(detallePersonaRouter);
+personasRouter.use(personaPorIdentificadorRouter);
 
 export default personasRouter;

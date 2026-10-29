@@ -191,14 +191,17 @@ model T_Personas {
     Nombres               String   @db.VarChar(80)
     Apellidos             String   @db.VarChar(100)
     Celular               String?  @db.VarChar(20)
-    Correo                String?  @db.VarChar(200)
+    Correo                String?  @db.VarChar(200) @unique
     Ruta_Foto             String?  @db.VarChar(300)
-    Fecha_Registro        DateTime @default(now()) @db.Date
-    Fecha_Actualizacion   DateTime? @db.Date
+    Fecha_Registro        DateTime @default(now()) @db.Timestamptz(3)
+    Fecha_Actualizacion   DateTime? @db.Timestamptz(3)
 
     // Relaciones
     Empleados_Empresas         T_Empleados_Empresas[]
     Capacitaciones_Persona_Nat T_Capacitacion_Persona_Natural[]
+    
+    // Índices de optimización
+    @@index([Fecha_Registro(sort: Desc)])
 }
 
 model T_Empleados_Empresas {

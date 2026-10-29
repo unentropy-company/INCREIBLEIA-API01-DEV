@@ -35,8 +35,10 @@ export async function obtenerUltimosRegistrosPersonas(
       ORDER BY ee."Fecha_Asignacion" DESC NULLS LAST, ee."Id_Empleado_Empresa" DESC
       LIMIT 1
     ) emp_actual ON TRUE
-    WHERE p."Fecha_Registro" >= (CURRENT_DATE - ($1 || ' days')::INTERVAL)
-    ORDER BY p."Fecha_Registro" DESC, p."Identificador_Persona" DESC
+    WHERE p."Fecha_Registro" >= (
+      (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::DATE - ($1 || ' days')::INTERVAL
+    ) AT TIME ZONE 'America/Lima'
+    ORDER BY p."Fecha_Registro" DESC
     LIMIT $2;
   `;
 
