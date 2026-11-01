@@ -5,6 +5,9 @@ export interface EmpleoVigenteDB {
   Id_Empresa: number;
   Cargo_Empleado: string | null;
   Correo_Corporativo_Empleado: string | null;
+  RUC?: string;
+  Razon_Social?: string;
+  Fecha_Asignacion?: string;
 }
 
 /**
@@ -56,22 +59,50 @@ export async function verificarConflictosActualizacionPersona(params: {
 }
 
 /**
- * Obtiene el empleo activo vigente actual de la persona si existe
+ * Obtiene el empleo activo vigente actual de la persona con datos de la empresa
  */
 export async function obtenerEmpleoActivoPersona(
   idPersona: string,
 ): Promise<EmpleoVigenteDB | null> {
   const sql = `
     SELECT 
-      "Id_Empleado_Empresa",
-      "Id_Empresa",
-      "Cargo_Empleado",
-      "Correo_Corporativo_Empleado"
-    FROM "T_Empleados_Empresas"
-    WHERE "Id_Persona" = $1 AND "Fecha_Fin_Asignacion" IS NULL
+      ee."Id_Empleado_Empresa",
+      ee."Id_Empresa",
+      ee."Cargo_Empleado",
+      ee."Correo_Corporativo_Empleado",
+      e."RUC",
+      e."Razon_Social",
+      ee."Fecha_Asignacion"::TEXT AS "Fecha_Asignacion"
+    FROM "T_Empleados_Empresas" ee
+    INNER JOIN "T_Empresas" e ON e."Id_Empresa" = ee."Id_Empresa"
+    WHERE ee."Id_Persona" = $1 AND ee."Fecha_Fin_Asignacion" IS NULL
     LIMIT 1;
   `;
   const result = await query(sql, [idPersona]);
+  return result.rows[0] || null;
+}
+
+/**
+ * Obtiene la información completa de un empleo por su ID (incluyendo RUC y Razón Social)
+ */
+export async function obtenerDetalleEmpleoPorId(
+  idEmpleadoEmpresa: number,
+): Promise<EmpleoVigenteDB | null> {
+  const sql = `
+    SELECT 
+      ee."Id_Empleado_Empresa",
+      ee."Id_Empresa",
+      ee."Cargo_Empleado",
+      ee."Correo_Corporativo_Empleado",
+      e."RUC",
+      e."Razon_Social",
+      ee."Fecha_Asignacion"::TEXT AS "Fecha_Asignacion"
+    FROM "T_Empleados_Empresas" ee
+    INNER JOIN "T_Empresas" e ON e."Id_Empresa" = ee."Id_Empresa"
+    WHERE ee."Id_Empleado_Empresa" = $1
+    LIMIT 1;
+  `;
+  const result = await query(sql, [idEmpleadoEmpresa]);
   return result.rows[0] || null;
 }
 
@@ -86,7 +117,7 @@ export async function actualizarDatosPersona(params: {
   celular: string | null;
   correo: string | null;
   rutaFoto?: string | null;
-  fechaActualizacion?: string; // Cadena ISO-8601 del servidor
+  fechaActualizacion?: string;
 }): Promise<string> {
   const timestampServidor =
     params.fechaActualizacion || new Date().toISOString();
@@ -123,6 +154,7 @@ export async function actualizarDatosPersona(params: {
   const result = await query(sql, values);
   return result.rows[0]?.Fecha_Actualizacion || timestampServidor;
 }
+
 /**
  * Cierra un empleo vigente colocando Fecha_Fin_Asignacion = CURRENT_DATE
  */

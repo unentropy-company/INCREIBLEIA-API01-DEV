@@ -41,6 +41,7 @@ import {
   actualizarDatosPersona,
   actualizarDetallesEmpleoActivo,
   finalizarEmpleoActivo,
+  obtenerDetalleEmpleoPorId,
   obtenerEmpleoActivoPersona,
   verificarConflictosActualizacionPersona,
 } from "../../../../../core/databases/queries/personas/actualizarPersona";
@@ -608,7 +609,7 @@ detallePersonaRouter.patch(
       const { idEmpresa, cargoEmpleado, correoCorporativoEmpleado } =
         parseResult.data;
 
-      // 3. Verificar que la persona exista y obtener su empleo activo
+      // 3. Verificar existencia de persona y su empleo activo
       const [personaActual, empleoActivoActual] = await Promise.all([
         obtenerDetallePersonaPorId(idPersona),
         obtenerEmpleoActivoPersona(idPersona),
@@ -623,7 +624,7 @@ detallePersonaRouter.patch(
         return res.status(404).json(errorResponse);
       }
 
-      // 4. Si se especifica empresa, verificar que exista en base de datos
+      // 4. Si se especifica empresa, verificar que exista en BD
       if (idEmpresa) {
         const empresaExiste = await verificarExistenciaEmpresa(idEmpresa);
         if (!empresaExiste) {
@@ -636,7 +637,7 @@ detallePersonaRouter.patch(
         }
       }
 
-      // 5. Verificar que el correo corporativo no esté activo en otro empleo
+      // 5. Verificar conflicto de correo corporativo
       if (correoCorporativoEmpleado) {
         const { existeCorreoCorporativoActivo } =
           await verificarConflictosActualizacionPersona({
@@ -659,43 +660,48 @@ detallePersonaRouter.patch(
       }
 
       // 6. Aplicar la lógica de negocio laboral
-      let empleoResultado = null;
+      let idEmpleadoEmpresaFinal: number | null = null;
 
       if (empleoActivoActual) {
         if (!idEmpresa) {
-          // Caso A: Pasar a "Sin Empresa" (finalizar el actual)
+          // Caso A: Pasar a "Sin Empresa" (cerrar actual)
           await finalizarEmpleoActivo(empleoActivoActual.Id_Empleado_Empresa);
         } else if (empleoActivoActual.Id_Empresa !== idEmpresa) {
-          // Caso B: Cambio de empresa (cerrar el actual e insertar el nuevo)
+          // Caso B: Cambio de empresa (cerrar anterior y crear nuevo)
           await finalizarEmpleoActivo(empleoActivoActual.Id_Empleado_Empresa);
-          empleoResultado = await insertarEmpleadoEmpresa({
+          const nuevo = await insertarEmpleadoEmpresa({
             idEmpresa,
             idPersona,
             cargo: cargoEmpleado,
             correoCorporativo: correoCorporativoEmpleado,
           });
+          idEmpleadoEmpresaFinal = nuevo.Id_Empleado_Empresa;
         } else {
-          // Caso C: Misma empresa (actualizar cargo o correo corporativo)
+          // Caso C: Misma empresa (actualizar cargo y correo corporativo)
           await actualizarDetallesEmpleoActivo({
             idEmpleadoEmpresa: empleoActivoActual.Id_Empleado_Empresa,
             cargo: cargoEmpleado,
             correoCorporativo: correoCorporativoEmpleado,
           });
-          empleoResultado = {
-            Id_Empleado_Empresa: empleoActivoActual.Id_Empleado_Empresa,
-            Id_Empresa: idEmpresa,
-            Cargo_Empleado: cargoEmpleado,
-            Correo_Corporativo_Empleado: correoCorporativoEmpleado,
-          };
+          idEmpleadoEmpresaFinal = empleoActivoActual.Id_Empleado_Empresa;
         }
       } else if (idEmpresa) {
         // Caso D: No tenía empleo vigente y se asigna uno nuevo
-        empleoResultado = await insertarEmpleadoEmpresa({
+        const nuevo = await insertarEmpleadoEmpresa({
           idEmpresa,
           idPersona,
           cargo: cargoEmpleado,
           correoCorporativo: correoCorporativoEmpleado,
         });
+        idEmpleadoEmpresaFinal = nuevo.Id_Empleado_Empresa;
+      }
+
+      // 7. Consultar entidad completa para garantizar RUC, Razón Social y fechas
+      let empleoCompleto = null;
+      if (idEmpleadoEmpresaFinal) {
+        empleoCompleto = await obtenerDetalleEmpleoPorId(
+          idEmpleadoEmpresaFinal,
+        );
       }
 
       return res.status(200).json({
@@ -703,13 +709,16 @@ detallePersonaRouter.patch(
         message: "Vínculo laboral actualizado exitosamente",
         data: {
           Identificador_Persona: idPersona,
-          Empleo_Actual: empleoResultado
+          Empleo_Actual: empleoCompleto
             ? {
-                Id_Empleado_Empresa: empleoResultado.Id_Empleado_Empresa,
-                Id_Empresa: empleoResultado.Id_Empresa,
-                Cargo_Empleado: empleoResultado.Cargo_Empleado,
+                Id_Empleado_Empresa: empleoCompleto.Id_Empleado_Empresa,
+                Id_Empresa: empleoCompleto.Id_Empresa,
+                RUC: empleoCompleto.RUC || null,
+                Razon_Social: empleoCompleto.Razon_Social || null,
+                Cargo_Empleado: empleoCompleto.Cargo_Empleado,
                 Correo_Corporativo_Empleado:
-                  empleoResultado.Correo_Corporativo_Empleado,
+                  empleoCompleto.Correo_Corporativo_Empleado,
+                Fecha_Asignacion: empleoCompleto.Fecha_Asignacion,
               }
             : null,
         },
