@@ -60,3 +60,20 @@ export interface ResponseSuccessGetDetallePersona {
   message: string;
   data: ResponseDetallePersonaData;
 }
+
+// VERIFICACION ELIMINABILIDAD DE PERSONA
+export interface DatosEliminabilidadPersona {
+  Identificador_Persona: string;
+  Nombre_Completo: string;
+  Certificados_Emitidos: number;
+  Capacitaciones_Asociadas: number;
+  Empleos_En_Historial: number;
+  Es_Eliminable: boolean;
+  Motivo_No_Eliminable: string | null;
+}
+
+export interface ResponseSuccessVerificarEliminabilidad {
+  success: true;
+  message: string;
+  data: DatosEliminabilidadPersona;
+}

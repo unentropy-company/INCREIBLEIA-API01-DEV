@@ -45,6 +45,7 @@ import {
   obtenerEmpleoActivoPersona,
   verificarConflictosActualizacionPersona,
 } from "../../../../../core/databases/queries/personas/actualizarPersona";
+import { verificarEliminabilidadPersonaQuery } from "../../../../../core/databases/queries/personas/verificarEliminabilidadPersona";
 
 const detallePersonaRouter = Router();
 
@@ -728,6 +729,119 @@ detallePersonaRouter.patch(
       const errorResponse: ErrorResponseAPIBase = {
         success: false,
         message: "Error interno al actualizar el vínculo laboral de la persona",
+        errorType: SystemErrorTypes.DATABASE_ERROR,
+      };
+      return res.status(500).json(errorResponse);
+    }
+  },
+);
+
+// =======================================================================================
+//   DOCUMENTACIÓN SWAGGER / OPENAPI (GET /personas/:idPersona/is-deletable)
+// =======================================================================================
+/**
+ * @openapi
+ * /personas/{idPersona}/is-deletable:
+ *   get:
+ *     summary: Verificar si una persona es eliminable y obtener estadísticas de integridad
+ *     description: >
+ *       Comprueba si la persona cuenta con certificados emitidos, historial laboral
+ *       o capacitaciones activas/finalizadas para determinar si puede eliminarse sin violar
+ *       la trazabilidad legal del sistema.
+ *     tags:
+ *       - Personas
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: idPersona
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "Identificador compuesto de la persona (ej. 71986445-1)."
+ *         example: "71986445-1"
+ *     responses:
+ *       200:
+ *         description: Comprobación realizada exitosamente.
+ *       400:
+ *         description: Identificador de persona con formato inválido.
+ *       404:
+ *         description: La persona no existe.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+detallePersonaRouter.get(
+  "/:idPersona/is-deletable",
+  isAdministradorAuthenticated,
+  isCuentaTemporalAuthenticated,
+  checkAuthentication,
+  async (req: Request, res: Response) => {
+    try {
+      const paramsValidation = getDetallePersonaParamsSchema.safeParse(
+        req.params,
+      );
+      if (!paramsValidation.success) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: "Identificador de persona inválido",
+          errorType: ValidationErrorTypes.INVALID_FORMAT,
+        };
+        return res.status(400).json(errorResponse);
+      }
+
+      const { idPersona } = paramsValidation.data;
+
+      const metricas = await verificarEliminabilidadPersonaQuery(idPersona);
+
+      if (!metricas) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: `No se encontró a la persona con identificador ${idPersona}`,
+          errorType: UserErrorTypes.USER_NOT_FOUND,
+        };
+        return res.status(404).json(errorResponse);
+      }
+
+      const tieneCertificados = metricas.Certificados_Emitidos > 0;
+      const tieneCapacitacionesConcluidas =
+        metricas.Capacitaciones_Iniciadas_O_Finalizadas > 0;
+      const tieneCapacitacionesPendientes =
+        metricas.Capacitaciones_Pendientes > 0;
+
+      let esEliminable = true;
+      let motivoNoEliminable: string | null = null;
+
+      // Escenario A: Bloqueo estricto e irrevocable por trazabilidad y auditoría
+      if (tieneCertificados || tieneCapacitacionesConcluidas) {
+        esEliminable = false;
+        motivoNoEliminable =
+          "No se puede eliminar: La persona cuenta con certificados emitidos o capacitaciones concluidas/en curso. Por motivos de auditoría y trazabilidad legal, este registro no puede ser eliminado.";
+      }
+      // Escenario B: Bloqueo temporal subsanable (desvinculando de clases pendientes)
+      else if (tieneCapacitacionesPendientes) {
+        esEliminable = false;
+        motivoNoEliminable =
+          "No se puede eliminar: La persona está inscrita en capacitaciones pendientes. Debe desvincularla de dichas clases antes de proceder con la eliminación.";
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Verificación de eliminabilidad realizada exitosamente",
+        data: {
+          Identificador_Persona: idPersona,
+          Nombre_Completo: `${metricas.Nombres} ${metricas.Apellidos}`.trim(),
+          Certificados_Emitidos: metricas.Certificados_Emitidos,
+          Capacitaciones_Asociadas: metricas.Capacitaciones_Asociadas,
+          Empleos_En_Historial: metricas.Empleos_En_Historial,
+          Es_Eliminable: esEliminable,
+          Motivo_No_Eliminable: motivoNoEliminable,
+        },
+      });
+    } catch (error) {
+      console.error("Error al verificar eliminabilidad de persona:", error);
+      const errorResponse: ErrorResponseAPIBase = {
+        success: false,
+        message: "Error interno al verificar eliminabilidad de la persona",
         errorType: SystemErrorTypes.DATABASE_ERROR,
       };
       return res.status(500).json(errorResponse);
