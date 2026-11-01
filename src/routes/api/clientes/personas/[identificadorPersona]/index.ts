@@ -6,6 +6,7 @@ import {
   getDetallePersonaParamsSchema,
   getDetallePersonaQuerySchema,
   actualizarPersonaBodySchema,
+  actualizarEmpleoPersonaBodySchema,
 } from "./schemas.zod";
 import isAdministradorAuthenticated from "../../../../../middlewares/isAdministradorAuthenticated";
 import isCuentaTemporalAuthenticated from "../../../../../middlewares/isCuentaTemporalAuthenticated";
@@ -44,19 +45,16 @@ import {
   verificarConflictosActualizacionPersona,
 } from "../../../../../core/databases/queries/personas/actualizarPersona";
 
-const personaPorIdentificadorRouter = Router();
+const detallePersonaRouter = Router();
 
 // =======================================================================================
 //                  DOCUMENTACIÓN SWAGGER / OPENAPI (GET /personas/:idPersona)
 // =======================================================================================
 /**
  * @openapi
- * /clientes/personas/{idPersona}:
+ * /personas/{idPersona}:
  *   get:
  *     summary: Obtener información detallada y/o historial laboral de una persona
- *     description: >
- *       Retorna los datos de formulario de la persona (incluyendo fechas de registro y actualización,
- *       y su empleo activo actual si existe) y/o su historial laboral paginado con el enum EstadoDeEmpleo.
  *     tags:
  *       - Personas
  *     security:
@@ -68,7 +66,6 @@ const personaPorIdentificadorRouter = Router();
  *         schema:
  *           type: string
  *         description: "Identificador compuesto de la persona (ej. 10928374-1)."
- *         example: "10928374-1"
  *       - in: query
  *         name: incluir
  *         required: false
@@ -76,7 +73,6 @@ const personaPorIdentificadorRouter = Router();
  *           type: string
  *           enum: [detalles, historial, todos]
  *           default: todos
- *         description: "Sección(es) a retornar en la respuesta ('detalles', 'historial' o 'todos'). Predeterminado: todos."
  *       - in: query
  *         name: paginaHistorial
  *         required: false
@@ -84,8 +80,6 @@ const personaPorIdentificadorRouter = Router();
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         description: "Número de página para el historial laboral. Mínimo: 1. Predeterminado: 1."
- *         example: 1
  *       - in: query
  *         name: limiteHistorial
  *         required: false
@@ -94,8 +88,6 @@ const personaPorIdentificadorRouter = Router();
  *           minimum: 1
  *           maximum: 20
  *           default: 5
- *         description: "Cantidad de registros por página en el historial laboral. Mínimo: 1, máximo: 20. Predeterminado: 5."
- *         example: 5
  *     responses:
  *       200:
  *         description: Datos obtenidos exitosamente.
@@ -108,7 +100,7 @@ const personaPorIdentificadorRouter = Router();
  *       500:
  *         description: Error interno del servidor.
  */
-personaPorIdentificadorRouter.get(
+detallePersonaRouter.get(
   "/:idPersona",
   isAdministradorAuthenticated,
   isCuentaTemporalAuthenticated,
@@ -244,14 +236,9 @@ personaPorIdentificadorRouter.get(
 // =======================================================================================
 /**
  * @openapi
- * /clientes/personas/{idPersona}:
+ * /personas/{idPersona}:
  *   put:
  *     summary: Actualizar información de una persona y gestionar su vínculo laboral
- *     description: >
- *       Permite actualizar nombres, apellidos, celular, correo personal (único) y foto de perfil.
- *       Establece la marca de tiempo de auditoría `Fecha_Actualizacion` al timestamp ISO exacto de llegada al servidor.
- *       Si se cambia la empresa asignada, el empleo vigente anterior queda finalizado (con Fecha_Fin_Asignacion = hoy)
- *       y se crea un nuevo vínculo laboral. Si se envía idEmpresa en null o 0, pasa al estado Sin Empresa.
  *     tags:
  *       - Personas
  *     security:
@@ -262,8 +249,6 @@ personaPorIdentificadorRouter.get(
  *         required: true
  *         schema:
  *           type: string
- *         description: "Identificador compuesto de la persona (ej. 71986445-1)."
- *         example: "71986445-1"
  *     requestBody:
  *       required: true
  *       content:
@@ -276,31 +261,23 @@ personaPorIdentificadorRouter.get(
  *             properties:
  *               nombres:
  *                 type: string
- *                 example: "Felipe Matías"
  *               apellidos:
  *                 type: string
- *                 example: "Soto Chávez"
  *               celular:
  *                 type: string
  *                 nullable: true
- *                 example: "+51987654321"
  *               correo:
  *                 type: string
  *                 nullable: true
- *                 example: "felipe.soto@ejemplo.com"
  *               idEmpresa:
  *                 type: integer
  *                 nullable: true
- *                 description: "ID de la empresa asignada. Omitir o enviar null/0 para dejar sin empresa."
- *                 example: 2
  *               cargoEmpleado:
  *                 type: string
  *                 nullable: true
- *                 example: "Supervisor de Seguridad"
  *               correoCorporativoEmpleado:
  *                 type: string
  *                 nullable: true
- *                 example: "fsoto@empresa.com"
  *               foto:
  *                 type: string
  *                 format: binary
@@ -312,11 +289,11 @@ personaPorIdentificadorRouter.get(
  *       404:
  *         description: La persona no existe.
  *       409:
- *         description: Conflicto - Correo personal ya registrado por otra persona o correo corporativo activo en uso.
+ *         description: Conflicto en correos.
  *       500:
  *         description: Error interno del servidor.
  */
-personaPorIdentificadorRouter.put(
+detallePersonaRouter.put(
   "/:idPersona",
   isAdministradorAuthenticated,
   isCuentaTemporalAuthenticated,
@@ -358,12 +335,10 @@ personaPorIdentificadorRouter.put(
     });
   },
   async (req: Request, res: Response) => {
-    // 0. Capturar el timestamp ISO exacto de llegada al servidor
     const timestampLlegadaServidorISO = new Date().toISOString();
     let rutaFotoSubida: string | null = null;
 
     try {
-      // 1. Validar parámetros de ruta
       const paramsValidation = getDetallePersonaParamsSchema.safeParse(
         req.params,
       );
@@ -378,7 +353,6 @@ personaPorIdentificadorRouter.put(
 
       const { idPersona } = paramsValidation.data;
 
-      // 2. Validar cuerpo de la petición con Zod
       const parseResult = actualizarPersonaBodySchema.safeParse(req.body);
       if (!parseResult.success) {
         const errorResponse: ErrorResponseAPIBase = {
@@ -400,7 +374,6 @@ personaPorIdentificadorRouter.put(
         correoCorporativoEmpleado,
       } = parseResult.data;
 
-      // 3. Verificar existencia de la persona y de su empleo actual activo
       const [personaActual, empleoActivoActual] = await Promise.all([
         obtenerDetallePersonaPorId(idPersona),
         obtenerEmpleoActivoPersona(idPersona),
@@ -415,7 +388,6 @@ personaPorIdentificadorRouter.put(
         return res.status(404).json(errorResponse);
       }
 
-      // 4. Validar existencia de la empresa si se va a asociar una
       if (idEmpresa) {
         const empresaExiste = await verificarExistenciaEmpresa(idEmpresa);
         if (!empresaExiste) {
@@ -428,7 +400,6 @@ personaPorIdentificadorRouter.put(
         }
       }
 
-      // 5. Validar unicidad de correo personal y corporativo (409 Conflict)
       const { existeCorreoPersonal, existeCorreoCorporativoActivo } =
         await verificarConflictosActualizacionPersona({
           idPersona,
@@ -458,7 +429,6 @@ personaPorIdentificadorRouter.put(
         return res.status(409).json(errorResponse);
       }
 
-      // 6. Subir nueva foto a Cloudflare R2 si viene un archivo
       if (req.file) {
         const ext = path.extname(req.file.originalname).toLowerCase() || ".png";
         rutaFotoSubida = `Fotos_Perfil/Personas/${idPersona}${ext}`;
@@ -470,7 +440,6 @@ personaPorIdentificadorRouter.put(
         );
       }
 
-      // 7. Actualizar tabla T_Personas pasando el timestamp exacto del servidor
       const fechaActualizacionPersistida = await actualizarDatosPersona({
         idPersona,
         nombres,
@@ -481,13 +450,10 @@ personaPorIdentificadorRouter.put(
         fechaActualizacion: timestampLlegadaServidorISO,
       });
 
-      // 8. Aplicar Reglas de Negocio del Vínculo Laboral
       if (empleoActivoActual) {
         if (!idEmpresa) {
-          // Pasa a "Sin Empresa": finalizar empleo actual
           await finalizarEmpleoActivo(empleoActivoActual.Id_Empleado_Empresa);
         } else if (empleoActivoActual.Id_Empresa !== idEmpresa) {
-          // Cambia de empresa: finalizar anterior y crear nuevo
           await finalizarEmpleoActivo(empleoActivoActual.Id_Empleado_Empresa);
           await insertarEmpleadoEmpresa({
             idEmpresa,
@@ -496,7 +462,6 @@ personaPorIdentificadorRouter.put(
             correoCorporativo: correoCorporativoEmpleado,
           });
         } else {
-          // Misma empresa: actualizar cargo y correo corporativo
           await actualizarDetallesEmpleoActivo({
             idEmpleadoEmpresa: empleoActivoActual.Id_Empleado_Empresa,
             cargo: cargoEmpleado,
@@ -504,7 +469,6 @@ personaPorIdentificadorRouter.put(
           });
         }
       } else if (idEmpresa) {
-        // No tenía empleo activo previo: asignar nuevo
         await insertarEmpleadoEmpresa({
           idEmpresa,
           idPersona,
@@ -513,7 +477,6 @@ personaPorIdentificadorRouter.put(
         });
       }
 
-      // 9. Resolver URL prefirmada actualizada
       const fotoFinalRuta = rutaFotoSubida || personaActual.Ruta_Foto;
       let fotoUrlActualizada: string | null = null;
       if (fotoFinalRuta) {
@@ -550,4 +513,217 @@ personaPorIdentificadorRouter.put(
   },
 );
 
-export default personaPorIdentificadorRouter;
+// =======================================================================================
+//        DOCUMENTACIÓN SWAGGER / OPENAPI (PATCH /personas/:idPersona/actualizar-empleo)
+// =======================================================================================
+/**
+ * @openapi
+ * /personas/{idPersona}/actualizar-empleo:
+ *   patch:
+ *     summary: Actualizar exclusivamente el empleo y vínculo laboral de una persona
+ *     description: >
+ *       Permite modificar únicamente la situación laboral de una persona sin alterar sus datos personales ni foto:
+ *       * **Cerrar empleo:** Enviar `idEmpresa: null` o `0` finaliza el empleo vigente (`Fecha_Fin_Asignacion = CURRENT_DATE`).
+ *       * **Cambiar empresa:** Si el `idEmpresa` es diferente, finaliza el empleo activo actual e inserta un nuevo registro.
+ *       * **Actualizar cargo/correo:** Si el `idEmpresa` es el mismo, actualiza el cargo y correo corporativo sin cerrar el vínculo.
+ *       * **Nuevo empleo:** Si no tenía empresa activa y se envía una, se crea el nuevo registro.
+ *     tags:
+ *       - Personas
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: idPersona
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "Identificador compuesto de la persona (ej. 71986445-1)."
+ *         example: "71986445-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idEmpresa:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: "ID de la empresa asignada (mínimo: 1). Enviar null o 0 para finalizar empleo actual."
+ *                 example: 2
+ *               cargoEmpleado:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "Coordinador de Calidad"
+ *               correoCorporativoEmpleado:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "felipe.soto@empresa2.com"
+ *     responses:
+ *       200:
+ *         description: Vínculo laboral actualizado exitosamente.
+ *       400:
+ *         description: Datos de solicitud o identificador inválidos.
+ *       404:
+ *         description: Persona no encontrada.
+ *       409:
+ *         description: Conflicto - La empresa no existe o el correo corporativo ya está en uso por otro empleado activo.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+detallePersonaRouter.patch(
+  "/:idPersona/actualizar-empleo",
+  isAdministradorAuthenticated,
+  isCuentaTemporalAuthenticated,
+  checkAuthentication,
+  async (req: Request, res: Response) => {
+    try {
+      // 1. Validar parámetro de ruta
+      const paramsValidation = getDetallePersonaParamsSchema.safeParse(
+        req.params,
+      );
+      if (!paramsValidation.success) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: "Identificador de persona inválido",
+          errorType: ValidationErrorTypes.INVALID_FORMAT,
+        };
+        return res.status(400).json(errorResponse);
+      }
+
+      const { idPersona } = paramsValidation.data;
+
+      // 2. Validar cuerpo JSON con Zod
+      const parseResult = actualizarEmpleoPersonaBodySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: "Parámetros del empleo inválidos",
+          errorType: ValidationErrorTypes.INVALID_FORMAT,
+          errors: parseResult.error.flatten().fieldErrors,
+        };
+        return res.status(400).json(errorResponse);
+      }
+
+      const { idEmpresa, cargoEmpleado, correoCorporativoEmpleado } =
+        parseResult.data;
+
+      // 3. Verificar que la persona exista y obtener su empleo activo
+      const [personaActual, empleoActivoActual] = await Promise.all([
+        obtenerDetallePersonaPorId(idPersona),
+        obtenerEmpleoActivoPersona(idPersona),
+      ]);
+
+      if (!personaActual) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: `No se encontró a la persona con identificador ${idPersona}`,
+          errorType: UserErrorTypes.USER_NOT_FOUND,
+        };
+        return res.status(404).json(errorResponse);
+      }
+
+      // 4. Si se especifica empresa, verificar que exista en base de datos
+      if (idEmpresa) {
+        const empresaExiste = await verificarExistenciaEmpresa(idEmpresa);
+        if (!empresaExiste) {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: `La empresa con ID ${idEmpresa} no existe`,
+            errorType: DataConflictErrorTypes.DATABASE_CONSTRAINT,
+          };
+          return res.status(409).json(errorResponse);
+        }
+      }
+
+      // 5. Verificar que el correo corporativo no esté activo en otro empleo
+      if (correoCorporativoEmpleado) {
+        const { existeCorreoCorporativoActivo } =
+          await verificarConflictosActualizacionPersona({
+            idPersona,
+            correoPersonal: null,
+            correoCorporativo: correoCorporativoEmpleado,
+            idEmpleadoEmpresaActual:
+              empleoActivoActual?.Id_Empleado_Empresa || null,
+          });
+
+        if (existeCorreoCorporativoActivo) {
+          const errorResponse: ErrorResponseAPIBase = {
+            success: false,
+            message: `El correo corporativo '${correoCorporativoEmpleado}' ya está asignado a otro empleo activo`,
+            errorType: DataConflictErrorTypes.VALUE_ALREADY_IN_USE,
+            conflictField: "correoCorporativoEmpleado",
+          };
+          return res.status(409).json(errorResponse);
+        }
+      }
+
+      // 6. Aplicar la lógica de negocio laboral
+      let empleoResultado = null;
+
+      if (empleoActivoActual) {
+        if (!idEmpresa) {
+          // Caso A: Pasar a "Sin Empresa" (finalizar el actual)
+          await finalizarEmpleoActivo(empleoActivoActual.Id_Empleado_Empresa);
+        } else if (empleoActivoActual.Id_Empresa !== idEmpresa) {
+          // Caso B: Cambio de empresa (cerrar el actual e insertar el nuevo)
+          await finalizarEmpleoActivo(empleoActivoActual.Id_Empleado_Empresa);
+          empleoResultado = await insertarEmpleadoEmpresa({
+            idEmpresa,
+            idPersona,
+            cargo: cargoEmpleado,
+            correoCorporativo: correoCorporativoEmpleado,
+          });
+        } else {
+          // Caso C: Misma empresa (actualizar cargo o correo corporativo)
+          await actualizarDetallesEmpleoActivo({
+            idEmpleadoEmpresa: empleoActivoActual.Id_Empleado_Empresa,
+            cargo: cargoEmpleado,
+            correoCorporativo: correoCorporativoEmpleado,
+          });
+          empleoResultado = {
+            Id_Empleado_Empresa: empleoActivoActual.Id_Empleado_Empresa,
+            Id_Empresa: idEmpresa,
+            Cargo_Empleado: cargoEmpleado,
+            Correo_Corporativo_Empleado: correoCorporativoEmpleado,
+          };
+        }
+      } else if (idEmpresa) {
+        // Caso D: No tenía empleo vigente y se asigna uno nuevo
+        empleoResultado = await insertarEmpleadoEmpresa({
+          idEmpresa,
+          idPersona,
+          cargo: cargoEmpleado,
+          correoCorporativo: correoCorporativoEmpleado,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Vínculo laboral actualizado exitosamente",
+        data: {
+          Identificador_Persona: idPersona,
+          Empleo_Actual: empleoResultado
+            ? {
+                Id_Empleado_Empresa: empleoResultado.Id_Empleado_Empresa,
+                Id_Empresa: empleoResultado.Id_Empresa,
+                Cargo_Empleado: empleoResultado.Cargo_Empleado,
+                Correo_Corporativo_Empleado:
+                  empleoResultado.Correo_Corporativo_Empleado,
+              }
+            : null,
+        },
+      });
+    } catch (error) {
+      console.error("Error al actualizar empleo de persona:", error);
+      const errorResponse: ErrorResponseAPIBase = {
+        success: false,
+        message: "Error interno al actualizar el vínculo laboral de la persona",
+        errorType: SystemErrorTypes.DATABASE_ERROR,
+      };
+      return res.status(500).json(errorResponse);
+    }
+  },
+);
+
+export default detallePersonaRouter;

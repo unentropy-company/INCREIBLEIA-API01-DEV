@@ -57,7 +57,7 @@ model T_Intructores {
     Ruta_Curriculum          String?   @db.VarChar(300)
     Ruta_Firma               String    @db.VarChar(300)
     CIP                      String    @db.VarChar(15)
-    Estado_Verificacion_CIP  String    @db.Char(1)
+    Estado_Verificacion_CIP  String    @db.Char(1) // P: Pendiente, V: Verificado, R: Rechazado
     Fecha_Verificacion_CIP   DateTime? @db.Date
 
     // Relaciones
@@ -138,6 +138,9 @@ model T_Clases {
     Identificador_Instructor String   @db.VarChar(20)
     Codigo_Curso             Int
     Id_Examen                Int
+    Estado_Clase             String  @db.Char(2) @default("P") // P: Pendiente, EE: Examen Entrada, EC: En Curso, EF: Examen Final, F: Finalizado, C: Cancelada
+    Fechas_ISO_Estados       Json
+    Modalidad_Clase          String  @db.Char(1) // P: Presencial, V: Virtual, H: Híbrido
 
     // Relaciones
     Instructor             T_Intructores                  @relation(fields: [Identificador_Instructor], references: [Identificador_Instructor])
@@ -153,7 +156,6 @@ model T_Capacitaciones_Por_Empresa {
     Ruta_Registro_Capacitacion           String @db.VarChar(300)
     Correo_Destinatario_Envio_Resultados String @db.VarChar(200)
     Id_Clase                             String @db.VarChar(8)
-
     // Relaciones
     Clase                    T_Clases                          @relation(fields: [Id_Clase], references: [Id_Clase])
     Capacitaciones_Empleados T_Capacitacion_Empleado_Empresa[]

@@ -72,3 +72,40 @@ export const actualizarPersonaBodySchema = z.object({
     .optional()
     .transform((val) => (val === "" ? null : (val?.toLowerCase() ?? null))),
 });
+
+// ACTUALIZACION EMPLEO
+
+export const actualizarEmpleoPersonaBodySchema = z.object({
+  idEmpresa: z
+    .preprocess((val) => {
+      if (
+        val === "" ||
+        val === "null" ||
+        val === "0" ||
+        val === 0 ||
+        val === null
+      ) {
+        return null;
+      }
+      if (val !== undefined) return Number(val);
+      return undefined;
+    }, z.number().int().positive().nullable().optional())
+    .default(null),
+  cargoEmpleado: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === "" ? null : (val ?? null))),
+  correoCorporativoEmpleado: z
+    .string()
+    .trim()
+    .email("Correo corporativo inválido")
+    .nullable()
+    .optional()
+    .transform((val) => (val === "" ? null : (val?.toLowerCase() ?? null))),
+});
+
+export type ActualizarEmpleoPersonaBody = z.infer<
+  typeof actualizarEmpleoPersonaBodySchema
+>;
