@@ -46,6 +46,7 @@ import {
   verificarConflictosActualizacionPersona,
 } from "../../../../../core/databases/queries/personas/actualizarPersona";
 import { verificarEliminabilidadPersonaQuery } from "../../../../../core/databases/queries/personas/verificarEliminabilidadPersona";
+import { eliminarPersonaCascadaQuery } from "../../../../../core/databases/queries/personas/eliminarPersona";
 
 const detallePersonaRouter = Router();
 
@@ -842,6 +843,149 @@ detallePersonaRouter.get(
       const errorResponse: ErrorResponseAPIBase = {
         success: false,
         message: "Error interno al verificar eliminabilidad de la persona",
+        errorType: SystemErrorTypes.DATABASE_ERROR,
+      };
+      return res.status(500).json(errorResponse);
+    }
+  },
+);
+
+// =======================================================================================
+//        DOCUMENTACIÓN SWAGGER / OPENAPI (DELETE /personas/:idPersona)
+// =======================================================================================
+/**
+ * @openapi
+ * /personas/{idPersona}:
+ *   delete:
+ *     summary: Eliminar definitivamente una persona del sistema
+ *     description: >
+ *       Valida previamente la eliminabilidad de la persona. Si no cuenta con certificados
+ *       ni capacitaciones activas o concluidas:
+ *       1. Elimina en cascada todos sus registros de empleo en T_Empleados_Empresas.
+ *       2. Elimina la fila principal en T_Personas.
+ *       3. Elimina el archivo de foto de perfil almacenado en Cloudflare R2 si existe.
+ *     tags:
+ *       - Personas
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: idPersona
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "Identificador compuesto de la persona (ej. 71986445-1)."
+ *         example: "71986445-1"
+ *     responses:
+ *       200:
+ *         description: Persona eliminada exitosamente.
+ *       400:
+ *         description: Identificador de persona con formato inválido.
+ *       404:
+ *         description: Persona no encontrada.
+ *       409:
+ *         description: Conflicto - La persona no es eliminable por tener certificados o capacitaciones asociadas.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+detallePersonaRouter.delete(
+  "/:idPersona",
+  isAdministradorAuthenticated,
+  isCuentaTemporalAuthenticated,
+  checkAuthentication,
+  async (req: Request, res: Response) => {
+    try {
+      // 1. Validar parámetro de ruta
+      const paramsValidation = getDetallePersonaParamsSchema.safeParse(
+        req.params,
+      );
+      if (!paramsValidation.success) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: "Identificador de persona inválido",
+          errorType: ValidationErrorTypes.INVALID_FORMAT,
+        };
+        return res.status(400).json(errorResponse);
+      }
+
+      const { idPersona } = paramsValidation.data;
+
+      // 2. Verificar eliminabilidad e integridad referencial
+      const metricas = await verificarEliminabilidadPersonaQuery(idPersona);
+
+      if (!metricas) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: `No se encontró a la persona con identificador ${idPersona}`,
+          errorType: UserErrorTypes.USER_NOT_FOUND,
+        };
+        return res.status(404).json(errorResponse);
+      }
+
+      const tieneCertificados = metricas.Certificados_Emitidos > 0;
+      const tieneCapacitacionesConcluidas =
+        metricas.Capacitaciones_Iniciadas_O_Finalizadas > 0;
+      const tieneCapacitacionesPendientes =
+        metricas.Capacitaciones_Pendientes > 0;
+
+      // Si no es eliminable, rechazamos con 409
+      if (tieneCertificados || tieneCapacitacionesConcluidas) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message:
+            "No se puede eliminar: La persona cuenta con certificados emitidos o capacitaciones concluidas/en curso. Por motivos de auditoría y trazabilidad legal, este registro no puede ser eliminado.",
+          errorType: DataConflictErrorTypes.DATABASE_CONSTRAINT,
+        };
+        return res.status(409).json(errorResponse);
+      }
+
+      if (tieneCapacitacionesPendientes) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message:
+            "No se puede eliminar: La persona está inscrita en capacitaciones pendientes. Debe desvincularla de dichas clases antes de proceder con la eliminación.",
+          errorType: DataConflictErrorTypes.DATABASE_CONSTRAINT,
+        };
+        return res.status(409).json(errorResponse);
+      }
+
+      // 3. Ejecutar eliminación en cascada en la base de datos
+      const resultadoEliminacion = await eliminarPersonaCascadaQuery(idPersona);
+
+      if (!resultadoEliminacion) {
+        const errorResponse: ErrorResponseAPIBase = {
+          success: false,
+          message: `No se encontró a la persona con identificador ${idPersona}`,
+          errorType: UserErrorTypes.USER_NOT_FOUND,
+        };
+        return res.status(404).json(errorResponse);
+      }
+
+      // 4. Limpieza del archivo físico en Cloudflare R2
+      if (resultadoEliminacion.rutaFoto) {
+        try {
+          await r2StorageClient.deleteFile(resultadoEliminacion.rutaFoto);
+        } catch (r2Error) {
+          console.error(
+            `[R2 Warning] No se pudo borrar la foto ${resultadoEliminacion.rutaFoto}:`,
+            r2Error,
+          );
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Persona eliminada exitosamente del sistema",
+        data: {
+          Identificador_Persona: idPersona,
+          Nombre_Completo: `${metricas.Nombres} ${metricas.Apellidos}`.trim(),
+        },
+      });
+    } catch (error) {
+      console.error("Error al eliminar persona:", error);
+      const errorResponse: ErrorResponseAPIBase = {
+        success: false,
+        message: "Error interno al procesar la eliminación de la persona",
         errorType: SystemErrorTypes.DATABASE_ERROR,
       };
       return res.status(500).json(errorResponse);
