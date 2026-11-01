@@ -65,6 +65,8 @@ export interface ResponseSuccessGetDetallePersona {
 export interface DatosEliminabilidadPersona {
   Identificador_Persona: string;
   Nombre_Completo: string;
+  Tipo_Documento_Nombre?: string;
+  Numero_Documento?: string;
   Certificados_Emitidos: number;
   Capacitaciones_Asociadas: number;
   Empleos_En_Historial: number;

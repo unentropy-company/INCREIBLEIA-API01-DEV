@@ -748,7 +748,8 @@ detallePersonaRouter.patch(
  *     description: >
  *       Comprueba si la persona cuenta con certificados emitidos, historial laboral
  *       o capacitaciones activas/finalizadas para determinar si puede eliminarse sin violar
- *       la trazabilidad legal del sistema.
+ *       la trazabilidad legal del sistema. Devuelve además los datos de identidad (tipo y número de documento)
+ *       para presentar la confirmación amigable en el modal.
  *     tags:
  *       - Personas
  *     security:
@@ -759,17 +760,110 @@ detallePersonaRouter.patch(
  *         required: true
  *         schema:
  *           type: string
- *         description: "Identificador compuesto de la persona (ej. 71986445-1)."
+ *         description: "Identificador compuesto de la persona en el sistema (ej. 71986445-1)."
  *         example: "71986445-1"
  *     responses:
  *       200:
  *         description: Comprobación realizada exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Verificación de eliminabilidad realizada exitosamente"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     Identificador_Persona:
+ *                       type: string
+ *                       description: "Identificador compuesto interno del sistema."
+ *                       example: "71986445-1"
+ *                     Nombre_Completo:
+ *                       type: string
+ *                       description: "Nombres y apellidos completos de la persona."
+ *                       example: "Felipe Matías Soto Chávez"
+ *                     Tipo_Documento_Nombre:
+ *                       type: string
+ *                       description: "Nombre descriptivo del documento de identidad."
+ *                       example: "DNI"
+ *                     Numero_Documento:
+ *                       type: string
+ *                       description: "Número real del documento con el que interactúa el usuario."
+ *                       example: "71986445"
+ *                     Certificados_Emitidos:
+ *                       type: integer
+ *                       description: "Total de certificados emitidos a nombre de la persona."
+ *                       example: 0
+ *                     Capacitaciones_Asociadas:
+ *                       type: integer
+ *                       description: "Total de capacitaciones donde ha estado registrada."
+ *                       example: 0
+ *                     Empleos_En_Historial:
+ *                       type: integer
+ *                       description: "Total de registros de empleo en su historial."
+ *                       example: 0
+ *                     Es_Eliminable:
+ *                       type: boolean
+ *                       description: "Indica si la persona puede ser eliminada definitivamente."
+ *                       example: true
+ *                     Motivo_No_Eliminable:
+ *                       type: string
+ *                       nullable: true
+ *                       description: "Detalle explicativo cuando Es_Eliminable es false."
+ *                       example: null
  *       400:
  *         description: Identificador de persona con formato inválido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Identificador de persona inválido"
+ *                 errorType:
+ *                   type: string
+ *                   example: "INVALID_FORMAT"
  *       404:
- *         description: La persona no existe.
+ *         description: La persona no existe en el sistema.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "No se encontró a la persona con identificador 71986445-1"
+ *                 errorType:
+ *                   type: string
+ *                   example: "USER_NOT_FOUND"
  *       500:
- *         description: Error interno del servidor.
+ *         description: Error interno del servidor al procesar la verificación.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error interno al verificar eliminabilidad de la persona"
+ *                 errorType:
+ *                   type: string
+ *                   example: "DATABASE_ERROR"
  */
 detallePersonaRouter.get(
   "/:idPersona/is-deletable",
@@ -831,6 +925,8 @@ detallePersonaRouter.get(
         data: {
           Identificador_Persona: idPersona,
           Nombre_Completo: `${metricas.Nombres} ${metricas.Apellidos}`.trim(),
+          Tipo_Documento_Nombre: metricas.Tipo_Documento_Nombre,
+          Numero_Documento: metricas.Numero_Documento,
           Certificados_Emitidos: metricas.Certificados_Emitidos,
           Capacitaciones_Asociadas: metricas.Capacitaciones_Asociadas,
           Empleos_En_Historial: metricas.Empleos_En_Historial,

@@ -3,6 +3,9 @@ import { query } from "../../connectors/Postgres";
 export interface MetricasEliminacionPersonaDB {
   Nombres: string;
   Apellidos: string;
+  Tipo_Documento_Id: number;
+  Tipo_Documento_Nombre: string;
+  Numero_Documento: string;
   Certificados_Emitidos: number;
   Capacitaciones_Asociadas: number;
   Empleos_En_Historial: number;
@@ -10,10 +13,6 @@ export interface MetricasEliminacionPersonaDB {
   Capacitaciones_Iniciadas_O_Finalizadas: number;
 }
 
-/**
- * Consulta en un solo viaje a PostgreSQL todas las métricas de integridad referencial
- * de una persona para determinar si puede ser eliminada.
- */
 export async function verificarEliminabilidadPersonaQuery(
   idPersona: string,
 ): Promise<MetricasEliminacionPersonaDB | null> {
@@ -21,8 +20,11 @@ export async function verificarEliminabilidadPersonaQuery(
     SELECT 
       p."Nombres",
       p."Apellidos",
+      p."Id_Tipo_Documento" AS "Tipo_Documento_Id",
+      td."Nombre_Tipo_Documento" AS "Tipo_Documento_Nombre",
+      p."Numero_Documento",
 
-      -- 1. Total Certificados Emitidos (Tanto como Persona Natural como por Empresa)
+      -- 1. Total Certificados Emitidos
       (
         SELECT COUNT(DISTINCT cert."Id_Certificado")::INT
         FROM "T_Certificados" cert
@@ -38,29 +40,26 @@ export async function verificarEliminabilidadPersonaQuery(
            OR ee."Id_Persona" = p."Identificador_Persona"
       ) AS "Certificados_Emitidos",
 
-      -- 2. Total de Empleos en su Historial
+      -- 2. Total Empleos en Historial
       (
         SELECT COUNT(*)::INT 
         FROM "T_Empleados_Empresas" 
         WHERE "Id_Persona" = p."Identificador_Persona"
       ) AS "Empleos_En_Historial",
 
-      -- 3. Total de Capacitaciones Asociadas
+      -- 3. Total Capacitaciones Asociadas
       (
         SELECT COUNT(DISTINCT clases_unificadas."Id_Clase")::INT
         FROM (
-          -- Vía Persona Natural
           SELECT cl."Id_Clase"
           FROM "T_Capacitacion_Persona_Natural" cpn
           INNER JOIN "T_Capacitacion_Varias_Personas_Naturales" cvpn 
             ON cvpn."Id_Capacitacion_Personas_Naturales" = cpn."Id_Capacitacion_Varias_Personas_Naturales"
-          -- Se asume el enlace con clases o directo
           CROSS JOIN "T_Clases" cl
           WHERE cpn."Identificador_Persona" = p."Identificador_Persona"
 
           UNION
 
-          -- Vía Empleado Empresa
           SELECT cpe."Id_Clase"
           FROM "T_Capacitacion_Empleado_Empresa" cee
           INNER JOIN "T_Capacitaciones_Por_Empresa" cpe 
@@ -71,7 +70,7 @@ export async function verificarEliminabilidadPersonaQuery(
         ) AS clases_unificadas
       ) AS "Capacitaciones_Asociadas",
 
-      -- 4. Capacitaciones Pendientes (Estado = 'P')
+      -- 4. Capacitaciones Pendientes
       (
         SELECT COUNT(DISTINCT cl."Id_Clase")::INT
         FROM "T_Clases" cl
@@ -81,7 +80,7 @@ export async function verificarEliminabilidadPersonaQuery(
         WHERE ee."Id_Persona" = p."Identificador_Persona" AND cl."Estado_Clase" = 'P'
       ) AS "Capacitaciones_Pendientes",
 
-      -- 5. Capacitaciones Iniciadas o Concluidas (EE, EC, EF, F)
+      -- 5. Capacitaciones Iniciadas o Concluidas
       (
         SELECT COUNT(DISTINCT cl."Id_Clase")::INT
         FROM "T_Clases" cl
@@ -92,6 +91,7 @@ export async function verificarEliminabilidadPersonaQuery(
       ) AS "Capacitaciones_Iniciadas_O_Finalizadas"
 
     FROM "T_Personas" p
+    INNER JOIN "T_Tipos_Documentos" td ON td."Id_Tipo_Documento" = p."Id_Tipo_Documento"
     WHERE p."Identificador_Persona" = $1
     LIMIT 1;
   `;
